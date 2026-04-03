@@ -1,23 +1,12 @@
 # Engineering
 
-Read this file when the task depends on understanding how `v1-openclaw` should be built.
-
-## Use This When
-
-- Planning architecture or system boundaries
-- Choosing implementation patterns or tooling
-- Applying the module-design rules in [design-philosophy.md](design-philosophy.md)
-- Turning product intent into buildable technical work
-- Handing off to the Stage-1 execution plan in [mvp-plan.md](mvp-plan.md)
-- Looking up repo-grounded OpenClaw touch points in [openclaw-map.md](openclaw-map.md)
-
-## Current State
-
-This document is a living summary of the current engineering direction. It should capture durable system rules, boundaries, and implementation strategy rather than every temporary build idea.
-
 For the current 30-day execution sequence, read [mvp-plan.md](mvp-plan.md). This file captures the durable patterns that plan should follow.
 For repo-grounded file touch points and “edit vs inspect vs avoid” guidance, read [openclaw-map.md](openclaw-map.md).
 For module design, dependency control, and deep-module guidance, read [design-philosophy.md](design-philosophy.md).
+For execution discipline, redesign triggers, and default operating rules for engineering work, read [engineering-practice.md](engineering-practice.md).
+For durable settled architecture bets, read [decisions.md](decisions.md).
+For preferred tool choices and contract-supporting libraries, read [tooling.md](tooling.md).
+For verification expectations, read [testing.md](testing.md).
 
 ## Core Rule
 
@@ -63,12 +52,19 @@ Intentive-zone ownership includes:
 
 Recommended repository shape:
 
-- `vendor/upstream` for the OpenClaw engine or mirrored upstream code
-- `packages/` for Intentive-owned abstractions and deep modules
-- `apps/` for user-facing product surfaces and service entrypoints
+- `vendor/openclaw/` for the upstream engine, kept as untouched as practical
+- `apps/expo/` for the user-facing client
+- `apps/intentive-api/` for the Stage-2+ Intentive-facing HTTP and realtime boundary
+- `packages/openclaw-bridge/` for translating between Intentive contracts and OpenClaw protocol
+- `packages/intentive-skills/` for product-specific skills and prompt logic
+- `packages/intentive-routines/` for work-block and routine behavior
 - `patches/` for tiny unavoidable upstream diffs
 
 The goal is to keep custom behavior concentrated in a few predictable places instead of spreading it across upstream internals.
+
+Additional rule:
+
+- add shared packages such as `packages/intentive-types/` only when the shared contract surface becomes real enough to justify its own module
 
 As a solo founder, this separation exists to preserve leverage from the OpenClaw community:
 
@@ -81,6 +77,7 @@ As a solo founder, this separation exists to preserve leverage from the OpenClaw
 These are repeatable implementation patterns, not just high-level preferences.
 
 Apply the `software-design-philosophy` skill when doing engineering-heavy design work in this repo, especially when deciding module boundaries, interfaces, or refactors.
+Apply the `OS` skill when planning, implementing, redesigning, or debugging affected product behavior in this repo.
 
 ### Placement Pattern
 
@@ -102,6 +99,7 @@ When adding behavior:
 - then bridge packages
 - then loader or config seams
 - only then consider a tiny upstream patch
+- redesign affected behavior coherently instead of stacking patches onto the old path
 
 If a proposed change requires broad edits across upstream core files, stop and redesign the boundary.
 
@@ -137,6 +135,11 @@ Choose the path based on what is being changed:
 - user task output goes to sandbox, storage, and metadata
 - experimental agent improvement goes to sandbox, branch, and PR
 - real product behavior change goes through Git review and normal deployment
+
+Execution rule:
+
+- treat each product change as a redesign of the affected behavior, not as an additive patch series
+- rebuild only the impacted domain and leave unaffected systems alone
 
 ### Isolation Pattern
 
@@ -179,6 +182,32 @@ Rules:
 - spend part of each change improving structure, not just making the feature work
 - avoid tactical shortcuts that increase long-term coupling or obscurity
 - comments should capture design intent where the abstraction is not obvious from code
+- delete non-essential requirements before design and implementation
+- treat repeated bug classes as redesign triggers, not as more patch tickets
+
+### Scope Pattern
+
+Before implementation, classify surface area as:
+
+- `affected-direct`
+- `affected-indirect`
+- `unaffected`
+
+Rules:
+
+- redesign only impacted domains
+- keep unaffected systems out of scope
+- do not inherit legacy implementation details as new requirements
+
+### Invariant Pattern
+
+Keep these as default engineering invariants:
+
+- one source of truth per domain
+- one write path per feature
+- one transport contract per feature
+- one owner per module
+- one obvious debugging path per incident class
 
 ## Architecture Principles
 
@@ -189,6 +218,7 @@ Rules:
 - Hide product complexity inside Intentive-owned modules with small, stable interfaces.
 - Keep deployed runtime code read-only in production.
 - Treat Git as the only durable source of truth for product code and intentional behavior changes.
+- Prefer redesigning affected flows over preserving awkward legacy pathways.
 
 Seam points include:
 
@@ -355,9 +385,9 @@ That boundary work should identify:
 Module-boundary pattern:
 
 - upstream owns engine behavior and reusable seams
-- bridge layers translate between OpenClaw and Intentive contracts
+- `packages/openclaw-bridge/` translates between OpenClaw and Intentive contracts
 - Intentive packages own product logic and policies
-- apps depend on Intentive contracts, not raw upstream internals
+- `apps/expo/` and later `apps/intentive-api/` depend on Intentive-facing contracts, not raw upstream internals
 
 ## Override Pattern
 
@@ -563,6 +593,33 @@ Workspace pattern:
 - mutate only inside `work/`
 - save durable results outside the workspace
 - clean up after completion
+
+Preferred runtime-data layout:
+
+```text
+/runtime-data/
+  sandboxes/
+    {tenant_id}/
+      {job_id}/
+        input/
+        work/
+        output/
+        metadata.json
+  caches/
+  logs/
+```
+
+Rules for this layout:
+
+- keep it outside the source repo
+- isolate writable job space by both `tenant_id` and `job_id`
+- keep `input/` as staged or copied material
+- keep `work/` as the only mutable scratch area
+- keep `output/` for final generated material before save or upload
+- keep `metadata.json` as the authority for ownership, TTL, and permissions
+- keep caches and logs outside sandbox job folders unless there is a strong reason not to
+
+This is the default pattern to follow for runtime mutation, not just an example.
 
 Every job should carry identity through the system so workers know:
 

@@ -1,13 +1,5 @@
 # Open Questions
 
-Read this file when you need to understand what is still undecided in `v1-openclaw`.
-
-## Use This When
-
-- A decision depends on missing product or technical context
-- A conversation introduces options but not a final choice
-- Planning next steps and identifying what needs confirmation
-
 ## Rules
 
 - Record questions and tradeoffs here until they are resolved.

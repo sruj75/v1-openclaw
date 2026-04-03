@@ -1,17 +1,5 @@
 # Product
 
-Read this file when the task depends on understanding the founder view of `v1-openclaw`.
-
-## Use This When
-
-- Translating product vision into scoped work
-- Clarifying target users or user problems
-- Deciding whether a feature fits the current product direction
-
-## Current State
-
-This document is a living summary of the current founder thesis. It should reflect synthesized direction, not every brainstorm, note dump, or contradictory framing that appears during exploration.
-
 ## Product Thesis
 
 Intentive is not primarily a planning tool, reminder app, or general AI companion. The core company thesis is:

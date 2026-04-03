@@ -1,14 +1,5 @@
 # OpenClaw Map
 
-Read this file when you need repo-grounded guidance on where to inspect, where to edit, and where to avoid touching OpenClaw while building Intentive.
-
-## Use This When
-
-- Connecting Expo directly to OpenClaw in Stage 1
-- Deciding which OpenClaw files are safe edit points
-- Planning the Stage-2 adapter without stuffing product logic into gateway core
-- Planning what to prune later and in what order
-
 ## Stage-1 Principle
 
 Stage 1 should use OpenClaw as an existing gateway and runtime, not as a place to reinvent transport or scatter product behavior.
@@ -108,6 +99,38 @@ Rule:
 - keep a local mapper from raw protocol to Intentive UI events even in Stage 1
 - keep transport, frame parsing, and event mapping as their own deep modules instead of scattering protocol logic through UI screens
 
+## Runtime Data Layout
+
+Keep writable runtime data outside the repo in a dedicated runtime-data area.
+
+Preferred shape:
+
+```text
+/runtime-data/
+  sandboxes/
+    {tenant_id}/
+      {job_id}/
+        input/
+        work/
+        output/
+        metadata.json
+  caches/
+  logs/
+```
+
+Pattern:
+
+- source repo remains code, config, and durable logic
+- `/runtime-data/sandboxes` holds disposable per-job writable workspaces
+- tenant and job scoping are part of the path, not just metadata
+- caches and logs stay outside the repo and outside durable product code
+
+Do not:
+
+- write sandbox files into the source tree
+- let one job reuse another job's writable workspace
+- treat runtime output folders as durable product state
+
 ## Stage 2: Adapter Placement
 
 Do not primarily add the adapter inside `src/gateway/server-http.ts`.
@@ -129,17 +152,17 @@ The correct Stage-2 move is to add a sibling app:
 - `apps/intentive-api/src/routes/chat.ts`
 - `apps/intentive-api/src/routes/routines.ts`
 - `apps/intentive-api/src/realtime/ws.ts`
-- `apps/intentive-api/src/openclaw/client.ts`
-- `apps/intentive-api/src/openclaw/mappers.ts`
-- `apps/intentive-api/src/openclaw/sessionMap.ts`
+- `packages/openclaw-bridge/src/client.ts`
+- `packages/openclaw-bridge/src/mappers.ts`
+- `packages/openclaw-bridge/src/sessionMap.ts`
 
 Responsibilities:
 
 - expose clean HTTP routes to Expo
 - expose Intentive-owned realtime WebSocket
 - keep an internal WebSocket connection to OpenClaw Gateway
-- translate app actions to OpenClaw request frames
-- translate OpenClaw events back to app-facing events
+- translate app actions to OpenClaw request frames through `packages/openclaw-bridge`
+- translate OpenClaw events back to app-facing events through `packages/openclaw-bridge`
 
 ## If You Must Add Internal Intentive Routes
 
@@ -223,6 +246,7 @@ Build outside OpenClaw:
 Add:
 
 - `apps/intentive-api/*`
+- `packages/openclaw-bridge/*`
 
 Optionally edit:
 

@@ -1,14 +1,5 @@
 # Design Philosophy
 
-Read this file when designing modules, refactoring boundaries, or deciding how Intentive code should be organized as the product grows.
-
-## Use This When
-
-- Creating new packages, apps, or feature folders
-- Designing APIs, bridges, adapters, or policies
-- Deciding whether a module is too shallow or too coupled
-- Reviewing architecture changes for long-term complexity cost
-
 ## Core Principle
 
 Complexity is the main thing to manage.
@@ -138,21 +129,36 @@ Expected behavior:
 
 This is especially important in an early-stage startup, because complexity compounds fast.
 
+Pair this with [engineering-practice.md](engineering-practice.md):
+
+- this file governs module quality and complexity management
+- `engineering-practice.md` governs how iteration work should be scoped, redesigned, validated, and shipped
+
 ## Intentive-Specific Guidance
 
 ### Module Shape For This Repo
 
 The expected shape is:
 
-- `vendor/upstream`: OpenClaw engine and minimal fork delta
-- `packages/*`: Intentive deep modules and abstractions
-- `apps/*`: product surfaces and service entrypoints
+- `vendor/openclaw`: OpenClaw engine and minimal fork delta
+- `apps/expo`: product client surface
+- `apps/intentive-api`: product API and realtime boundary when Stage 2 is introduced
+- `packages/openclaw-bridge`: bridge from Intentive concepts to OpenClaw protocol
+- `packages/intentive-*`: deep product modules such as skills, routines, and later other owned domains
+- `patches`: tiny intentional upstream diffs
 
 Use that shape intentionally:
 
 - `apps` should orchestrate
-- `packages` should own deep domain logic
-- `vendor/upstream` should remain as untouched as practical
+- `packages/openclaw-bridge` should hide raw upstream protocol and transport details
+- `packages/intentive-*` should own deep domain logic
+- `vendor/openclaw` should remain as untouched as practical
+
+Do not add extra shared packages just because they look architecturally neat.
+
+Rule:
+
+- create a shared package only when it hides real complexity or stabilizes a real shared contract
 
 ### Interface Ownership
 
@@ -230,6 +236,7 @@ When doing engineering work in this repo:
 - use this philosophy together with [engineering.md](engineering.md)
 - use [openclaw-map.md](openclaw-map.md) for repo-aware edit points
 - use [mvp-plan.md](mvp-plan.md) for Stage-1 sequencing
+- use [tooling.md](tooling.md) when choosing libraries that affect module depth, contracts, or dependency direction
 
 The philosophy should shape:
 

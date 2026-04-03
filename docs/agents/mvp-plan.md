@@ -1,15 +1,5 @@
 # MVP Plan
 
-Read this file when planning or implementing the current Stage-1 30-day MVP.
-
-## Use This When
-
-- Turning the product wedge into a week-by-week execution plan
-- Deciding what to build first on top of OpenClaw
-- Wiring Braintrust traces and evals into the MVP from day 1
-- Checking whether a proposed task helps Stage 1 or belongs to a later stage
-- Applying [design-philosophy.md](design-philosophy.md) during implementation, not just after the fact
-
 ## Plan Frame
 
 This is not a generic startup MVP plan.
@@ -56,6 +46,9 @@ Atomic outcome:
 - Implement new behavior as deep modules with thin interfaces, not as scattered tactical edits.
 - Give each major concern one clear module home instead of spreading one feature across many folders.
 - Treat dependencies as a budget: keep them few, explicit, and directional.
+- Redesign affected behavior instead of layering patch-on-patch fixes onto weak flows.
+- Keep unaffected systems out of scope for month-1 work.
+- Delete non-essential requirements before implementation starts.
 
 ## Design Philosophy For Stage 1
 
@@ -68,6 +61,7 @@ Rules:
 - thin interfaces: callers should not need raw protocol, storage, or tracing details
 - low dependency leakage: a feature should not require touching many unrelated modules
 - strategic programming: spend time improving boundaries while building, not only after the prototype works
+- redesign the affected work-block behavior coherently when requirements change instead of preserving every old path
 
 Bad month-1 pattern:
 
@@ -82,6 +76,7 @@ Better month-1 pattern:
 - one clear module for intervention policy and prompt shaping
 - one clear module for OpenClaw transport and event mapping
 - one clear module for Braintrust rescue tracing and eval hooks
+- one obvious debugging path for each rescue attempt from client event to outcome trace
 
 ## Stage-1 North Stars
 
@@ -366,6 +361,7 @@ Prioritize only high-leverage fixes:
 Refactor rule:
 
 - when a fix reveals shallow or scattered design, spend time consolidating it into a deeper module instead of only patching the symptom
+- when the same failure mode appears repeatedly, treat it as a redesign trigger in the affected subsystem
 
 ### Week 4
 
@@ -536,6 +532,7 @@ Do not spend this month on:
 - deep plugin expansion
 - perfect abstractions for future stages
 - rebuilding session runtime, gateway transport, or generic orchestration from scratch
+- redesigning unaffected systems for aesthetic consistency
 
 ## Stage-2 Seam To Document
 
