@@ -60,18 +60,20 @@ For this repo that means:
 Documentation should behave like code:
 
 - each doc should have a clear purpose and source-of-truth boundary
-- root guidance should stay concise and delegate depth to leaf docs
 - architecture choices, invariants, and rejected alternatives should be captured explicitly
 - instructions should not compete across files
 - code comments should document why a module, boundary, or invariant exists when that intent would otherwise be lost in implementation detail
 
 For this repo that means:
 
-- `AGENTS.md` is the directive index
-- `docs/agents/*.md` files own deeper product, engineering, planning, and readiness guidance
 - when a rule becomes important enough to repeat in conversation, it should probably exist in docs
 - when two docs begin to disagree, treat that as a bug and resolve it
 - comments should explain ownership, invariants, and boundary intent inside deep modules without devolving into tutorial-style narration
+
+Freshness rule:
+
+- docs should track the real repo shape, test surface, and public boundaries closely enough that an agent can trust them as a navigation map
+- stale docs are not harmless; they are misleading instructions
 
 ### Code Clarity
 
@@ -83,6 +85,7 @@ Rules:
 - file and folder names should reflect owned knowledge
 - modules should expose small public surfaces
 - large flows should have obvious entry points and obvious owners
+- the filesystem should reflect the real module map instead of hiding it behind vague shared folders
 
 This reinforces the deep-module rule rather than competing with it.
 
@@ -105,6 +108,11 @@ For this repo that means keeping the current shape intentional:
 - `packages/openclaw-bridge`
 - `packages/intentive-*`
 - `/runtime-data/*` outside source control for mutable runtime work
+
+Design pressure:
+
+- docs, folders, and public interfaces should line up with the same stable seams
+- if the docs tree and the codebase tree describe different boundary maps, the agent will make worse decisions
 
 ### Type Safety
 
@@ -162,13 +170,13 @@ For this repo that especially applies to:
 - comments should be added or revised when a design decision, invariant, or boundary would otherwise be hard to recover from code alone
 - CI and local developer commands should stay fast enough to support iteration
 - repeated confusion in review should trigger better docs or clearer boundaries
+- repeated correction should be promoted into docs or a mechanical check so the system learns once instead of relying on memory
 
 ## Required Artifacts Over Time
 
 This repo should gradually maintain:
 
 - concise root instructions in `AGENTS.md`
-- focused leaf docs under `docs/agents/`
 - a stable home for durable decisions in `docs/agents/decisions.md`
 - architecture notes when system boundaries become materially more complex
 - testing and verification guidance in `docs/agents/testing.md`

@@ -12,6 +12,7 @@ This repository is the working plan for building Intentive as a proactive execut
 - Treat Stage 1 as a direct `Expo -> OpenClaw WebSocket` path with Braintrust instrumentation from day 1, but build it so Stage 2 adapter mode remains easy to introduce.
 - Treat raw OpenClaw protocol, runtime internals, and sidecars as infrastructure details to hide behind Intentive-owned contracts and mappers.
 - Prefer the concrete repo shape `vendor/openclaw`, `apps/expo`, `apps/intentive-api`, `packages/openclaw-bridge`, `packages/intentive-*`, and `patches`, adding shared packages only when they earn their keep.
+- Promote repeated review feedback, recurring implementation corrections, and stable architectural lessons into docs or mechanical checks so the same mistake does not need to be re-taught conversationally.
 - Treat `docs/agents/product.md` as the founder lens: what we are building, for whom, and why it matters.
 - Treat `docs/agents/engineering.md` as the engineer lens: how we plan to build it, with explicit assumptions and constraints.
 - Capture unsettled ideas in `docs/agents/open-questions.md` instead of presenting them as decided facts.
@@ -26,6 +27,8 @@ This repository is the working plan for building Intentive as a proactive execut
 - [docs/agents/testing.md](docs/agents/testing.md): Verification surface, testing expectations, and the default shape of lint, type, test, and end-to-end checks.
 - [docs/agents/tooling.md](docs/agents/tooling.md): Preferred tools and libraries when they fit the current subsystem and architecture.
 - [docs/agents/decisions.md](docs/agents/decisions.md): Durable architectural decisions that should not be re-litigated casually in every implementation pass.
+- [docs/agents/plans.md](docs/agents/plans.md): How execution plans should live in the repo as first-class artifacts when work is large enough to need them.
+- [docs/agents/references.md](docs/agents/references.md): How recurring external references and proven patterns should be pulled into repo-local guidance.
 - [docs/agents/mvp-plan.md](docs/agents/mvp-plan.md): Stage-1 30-day MVP plan grounded in the actual OpenClaw and Braintrust stack.
 - [docs/agents/openclaw-map.md](docs/agents/openclaw-map.md): Repo-grounded OpenClaw touch map for Stage 1, Stage 2, and later pruning.
 - [docs/agents/open-questions.md](docs/agents/open-questions.md): Active uncertainties, tradeoffs, and decisions still in flight.

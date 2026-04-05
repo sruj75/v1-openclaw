@@ -41,6 +41,20 @@ Practical rule:
 
 - if a module’s interface feels almost as complex as its implementation, redesign it
 
+### Grey-Box Module Rule
+
+Treat deep modules as grey boxes:
+
+- the public interface should explain what the module promises
+- tests should lock down the module's externally visible behavior
+- implementation detail can change freely as long as the interface and tests still hold
+
+This is a useful pattern for agent-friendly code:
+
+- humans define the boundaries, contracts, and taste
+- agents can work safely inside the module implementation
+- tests keep the implementation honest without requiring every change to be re-understood from scratch
+
 ### One Concern, One Home Rule
 
 Default to one product concern or feature area having one clear module home, often one folder.
@@ -59,6 +73,7 @@ It means:
 - group code by owned knowledge
 - avoid scattering one feature across many unrelated places
 - avoid temporal decomposition like `read`, `process`, `write` modules that all share the same knowledge
+- let the filesystem reflect the real module map closely enough that navigation follows boundaries instead of guesswork
 
 ### Thin Interface Rule
 

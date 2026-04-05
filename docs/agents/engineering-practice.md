@@ -117,6 +117,16 @@ Validate both correctness and simplicity:
 
 If behavior passes but complexity regresses, redesign again.
 
+### Promotion Loop
+
+When the same correction appears more than once:
+
+- update the nearest stable doc if the issue is conceptual
+- add or tighten a check if the issue is mechanically enforceable
+- move the lesson into a durable decision if it changes architecture or repo policy
+
+Do not rely on conversational repetition as the main enforcement mechanism.
+
 ## Bug Policy
 
 On bug discovery:

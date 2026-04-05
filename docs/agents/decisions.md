@@ -80,3 +80,4 @@ Comments should not narrate obvious line-by-line behavior.
 - move unresolved tension to [open-questions.md](open-questions.md)
 - update this file when a major architectural bet becomes settled enough that future implementation should assume it
 - if a decision is replaced, update the old entry rather than leaving contradictory rules in multiple docs
+- if the same architectural correction is repeated in review, promote it here or into a mechanical check rather than reteaching it in ad hoc conversation

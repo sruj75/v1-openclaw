@@ -66,6 +66,7 @@ Keep verification around:
 ## Test Design Rules
 
 - test contracts before implementation details
+- use tests to lock down a module's public behavior so implementation can change safely behind a stable interface
 - prefer one clear home for tests that matches owned behavior
 - add a regression test for every production bug class
 - keep end-to-end tests for top user journeys only
@@ -104,6 +105,21 @@ CI should eventually enforce:
 Rule:
 
 - CI should fail loudly on broken invariants, flaky checks, and contract drift
+
+## Mechanical Enforcement
+
+The most important verification rules should graduate from prose into checks.
+
+Examples:
+
+- lint rules for conventions and import discipline
+- structural tests for dependency direction and boundary violations
+- schema and contract checks at trust boundaries
+- verification scripts that converge on a small stable command surface
+
+Rule:
+
+- if the same verification correction appears repeatedly in review, prefer turning it into an automated check over repeating the same comment forever
 
 ## Documentation Requirement
 
