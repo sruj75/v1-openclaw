@@ -3,11 +3,15 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=24.11.0"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "dev": "npm run build && node dist/main.js --synthetic",
+    "dev": "npm run build && node --no-warnings dist/main.js --synthetic",
+    "seed:local": "npm run build && node --no-warnings dist/seed.js examples/local-routing.seed.example.json data/local.sqlite",
     "start": "node dist/main.js --synthetic",
-    "test": "npm run build && node --test test/*.test.mjs"
+    "test": "npm run build && node --no-warnings --test test/*.test.mjs"
   },
   "devDependencies": {
     "typescript": "^5.8.2"

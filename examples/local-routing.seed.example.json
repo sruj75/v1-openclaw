@@ -1,0 +1,36 @@
+{
+  "users": [
+    {
+      "id": "user_local_alex",
+      "discordUserId": "discord-user-local-alex",
+      "displayName": "Alex Demo",
+      "status": "active"
+    }
+  ],
+  "experts": [
+    {
+      "id": "expert_local_river",
+      "discordUserId": "discord-expert-local-river",
+      "displayName": "River Expert",
+      "status": "active"
+    }
+  ],
+  "agents": [
+    {
+      "id": "agent_local_alex",
+      "openClawAgentId": "openclaw-agent-local-alex",
+      "workspacePath": "/tmp/openclaw/workspaces/alex-demo",
+      "status": "active"
+    }
+  ],
+  "userAssignments": [
+    {
+      "id": "assignment_local_alex_private_channel",
+      "userId": "user_local_alex",
+      "expertId": "expert_local_river",
+      "agentId": "agent_local_alex",
+      "discordChannelId": "discord-channel-private-alex",
+      "active": true
+    }
+  ]
+}
