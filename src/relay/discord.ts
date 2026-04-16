@@ -8,6 +8,7 @@ import { resolveChannelRouting } from "../db/routing.js";
 import { getOrCreateConversationSession, type ConversationSession } from "../db/sessions.js";
 import type { SqliteDatabase } from "../db/sqlite.js";
 import { type DiscordOutboundAdapter, normalizeDiscordMessagePayload } from "../discord/index.js";
+import type { NormalizedDiscordEvent } from "../discord/index.js";
 import type { OpenClawGatewayClient, OpenClawGatewayReply } from "../openclaw/index.js";
 import { classifyDiscordMessage, type ClassifiedDiscordMessage } from "./classification.js";
 
@@ -34,6 +35,13 @@ export async function processDiscordMessagePayload(
   dependencies: ProcessDiscordMessageDependencies
 ): Promise<ProcessedDiscordMessage> {
   const normalizedEvent = normalizeDiscordMessagePayload(payload);
+  return processNormalizedDiscordEvent(normalizedEvent, dependencies);
+}
+
+export async function processNormalizedDiscordEvent(
+  normalizedEvent: NormalizedDiscordEvent,
+  dependencies: ProcessDiscordMessageDependencies
+): Promise<ProcessedDiscordMessage> {
   const existingMessage = findPersistedMessageByDiscordId(dependencies.database, normalizedEvent.id);
   const event = dependencies.discordSelfUserId === normalizedEvent.authorId
     ? { ...normalizedEvent, isBot: true }
