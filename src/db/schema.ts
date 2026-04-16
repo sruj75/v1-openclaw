@@ -53,6 +53,7 @@ CREATE TABLE IF NOT EXISTS messages (
   expert_id TEXT REFERENCES experts(id),
   agent_id TEXT REFERENCES agents(id),
   session_id TEXT REFERENCES conversation_sessions(id),
+  originating_message_id TEXT REFERENCES messages(id),
   role TEXT NOT NULL,
   message_type TEXT NOT NULL,
   content TEXT NOT NULL,

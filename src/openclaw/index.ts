@@ -1,6 +1,10 @@
 export type OpenClawGatewayReply = {
   status: "ok" | "not_configured";
   message?: string;
+  reply?: {
+    content: string;
+    runtimeMessageId?: string;
+  };
   traceId?: string;
   providerResponseId?: string;
 };

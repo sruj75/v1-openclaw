@@ -8,6 +8,7 @@ import test from "node:test";
 import { persistClassifiedMessage } from "../dist/db/messages.js";
 import { resolveChannelRouting } from "../dist/db/routing.js";
 import { seedRoutingAssignments } from "../dist/db/seed.js";
+import { createRecordingDiscordAdapter } from "../dist/discord/index.js";
 import { normalizeDiscordMessagePayload } from "../dist/discord/index.js";
 import { classifyDiscordMessage } from "../dist/relay/classification.js";
 import { processDiscordMessagePayload } from "../dist/relay/discord.js";
@@ -197,6 +198,59 @@ test("mapped user messages create a session and call the OpenClaw gateway client
   });
 });
 
+test("mapped user messages persist and post mock agent replies", async () => {
+  await withDatabase(async (database) => {
+    const sentDiscordMessages = [];
+    const discord = createRecordingDiscordAdapter(sentDiscordMessages);
+    const openClaw = {
+      async sendUserMessage() {
+        return {
+          status: "ok",
+          traceId: "trace-local-reply-1",
+          providerResponseId: "provider-response-reply-1",
+          reply: {
+            content: "Start with opening the document. I will stay with you for the next step.",
+            runtimeMessageId: "runtime-message-1"
+          }
+        };
+      }
+    };
+
+    const result = await processDiscordMessagePayload(
+      {
+        id: "discord-message-route-user-with-reply-1",
+        channelId: "discord-channel-private-alex",
+        author: { id: "discord-user-local-alex" },
+        content: "I am frozen.",
+        timestamp: "2026-04-16T00:02:55.000Z"
+      },
+      { database, openClaw, discord }
+    );
+
+    assert.equal(result.agentReply?.messageType, "agent_reply");
+    assert.deepEqual(sentDiscordMessages, [
+      {
+        channelId: "discord-channel-private-alex",
+        content: "Start with opening the document. I will stay with you for the next step.",
+        metadata: {
+          originatingDiscordMessageId: "discord-message-route-user-with-reply-1",
+          sessionId: "session_discord-channel-private-alex_agent_local_alex",
+          agentId: "agent_local_alex"
+        }
+      }
+    ]);
+
+    const reply = selectStoredMessage(database, "discord-agent-reply-1");
+
+    assert.equal(reply.role, "agent");
+    assert.equal(reply.message_type, "agent_reply");
+    assert.equal(reply.session_id, result.session?.id);
+    assert.equal(reply.originating_message_id, result.persisted.id);
+    assert.equal(reply.openclaw_trace_id, "trace-local-reply-1");
+    assert.equal(reply.openclaw_provider_response_id, "provider-response-reply-1");
+  });
+});
+
 test("bot and system events are classified as system events", async () => {
   await withDatabase((database) => {
     const botMessage = classifyAndPersist(database, {
@@ -277,7 +331,7 @@ function selectStoredMessage(database, discordMessageId) {
     .prepare(
       `
       SELECT discord_message_id, user_id, expert_id, agent_id, role, message_type, raw_event_json
-        , session_id, routing_metadata_json, openclaw_status, openclaw_trace_id, openclaw_provider_response_id
+        , session_id, originating_message_id, routing_metadata_json, openclaw_status, openclaw_trace_id, openclaw_provider_response_id
       FROM messages
       WHERE discord_message_id = ?
       `

@@ -15,6 +15,16 @@ export type MessagePersistenceOptions = {
   openClaw?: OpenClawGatewayReply | null;
 };
 
+export type AgentReplyMessageInput = {
+  discordMessageId: string;
+  channelId: string;
+  agentId: string;
+  session: ConversationSession;
+  originatingMessageId: string;
+  content: string;
+  openClaw: OpenClawGatewayReply;
+};
+
 export function persistClassifiedMessage(
   database: SqliteDatabase,
   message: ClassifiedDiscordMessage,
@@ -35,6 +45,7 @@ export function persistClassifiedMessage(
         expert_id,
         agent_id,
         session_id,
+        originating_message_id,
         role,
         message_type,
         content,
@@ -44,13 +55,14 @@ export function persistClassifiedMessage(
         openclaw_trace_id,
         openclaw_provider_response_id
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(discord_message_id) DO UPDATE SET
         channel_id = excluded.channel_id,
         user_id = excluded.user_id,
         expert_id = excluded.expert_id,
         agent_id = excluded.agent_id,
         session_id = excluded.session_id,
+        originating_message_id = excluded.originating_message_id,
         role = excluded.role,
         message_type = excluded.message_type,
         content = excluded.content,
@@ -87,6 +99,78 @@ export function persistClassifiedMessage(
     discordMessageId: message.event.id,
     messageType: message.messageType,
     role: message.role
+  };
+}
+
+export function persistAgentReplyMessage(
+  database: SqliteDatabase,
+  input: AgentReplyMessageInput
+): PersistedMessage {
+  const messageId = `discord_${input.discordMessageId}`;
+
+  database
+    .prepare(
+      `
+      INSERT INTO messages (
+        id,
+        discord_message_id,
+        channel_id,
+        user_id,
+        expert_id,
+        agent_id,
+        session_id,
+        originating_message_id,
+        role,
+        message_type,
+        content,
+        raw_event_json,
+        routing_metadata_json,
+        openclaw_status,
+        openclaw_trace_id,
+        openclaw_provider_response_id
+      )
+      VALUES (?, ?, ?, NULL, NULL, ?, ?, ?, 'agent', 'agent_reply', ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(discord_message_id) DO UPDATE SET
+        channel_id = excluded.channel_id,
+        agent_id = excluded.agent_id,
+        session_id = excluded.session_id,
+        originating_message_id = excluded.originating_message_id,
+        role = excluded.role,
+        message_type = excluded.message_type,
+        content = excluded.content,
+        raw_event_json = excluded.raw_event_json,
+        routing_metadata_json = excluded.routing_metadata_json,
+        openclaw_status = excluded.openclaw_status,
+        openclaw_trace_id = excluded.openclaw_trace_id,
+        openclaw_provider_response_id = excluded.openclaw_provider_response_id
+      `
+    )
+    .run(
+      messageId,
+      input.discordMessageId,
+      input.channelId,
+      input.agentId,
+      input.session.id,
+      input.originatingMessageId,
+      input.content,
+      JSON.stringify({
+        openClawReply: input.openClaw.reply ?? null
+      }),
+      JSON.stringify({
+        sessionId: input.session.id,
+        openClawSessionKey: input.session.openClawSessionKey,
+        originatingMessageId: input.originatingMessageId
+      }),
+      input.openClaw.status,
+      input.openClaw.traceId ?? null,
+      input.openClaw.providerResponseId ?? input.openClaw.reply?.runtimeMessageId ?? null
+    );
+
+  return {
+    id: messageId,
+    discordMessageId: input.discordMessageId,
+    messageType: "agent_reply",
+    role: "agent"
   };
 }
 

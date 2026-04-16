@@ -9,6 +9,38 @@ export type NormalizedDiscordEvent = {
   rawEvent: unknown;
 };
 
+export type DiscordSendMessageRequest = {
+  channelId: string;
+  content: string;
+  metadata: {
+    originatingDiscordMessageId: string;
+    sessionId: string;
+    agentId: string;
+  };
+};
+
+export type DiscordSendMessageResult = {
+  id: string;
+  channelId: string;
+};
+
+export type DiscordOutboundAdapter = {
+  sendMessage(request: DiscordSendMessageRequest): Promise<DiscordSendMessageResult>;
+};
+
+export function createRecordingDiscordAdapter(sentMessages: DiscordSendMessageRequest[] = []): DiscordOutboundAdapter {
+  return {
+    async sendMessage(request) {
+      sentMessages.push(request);
+
+      return {
+        id: `discord-agent-reply-${sentMessages.length}`,
+        channelId: request.channelId
+      };
+    }
+  };
+}
+
 export class DiscordPayloadValidationError extends Error {
   constructor(readonly errors: string[]) {
     super(`Invalid Discord payload:\n${errors.map((error) => `- ${error}`).join("\n")}`);
