@@ -56,5 +56,9 @@ CREATE TABLE IF NOT EXISTS messages (
   message_type TEXT NOT NULL,
   content TEXT NOT NULL,
   raw_event_json TEXT NOT NULL,
+  routing_metadata_json TEXT,
+  openclaw_status TEXT,
+  openclaw_trace_id TEXT,
+  openclaw_provider_response_id TEXT,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

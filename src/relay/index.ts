@@ -13,7 +13,12 @@ export type IntentiveRelayDependencies = {
   config: RelayConfig;
   store: RelayStore;
   openClaw: {
-    sendMessage(event: NormalizedDiscordEvent): Promise<OpenClawGatewayReply>;
+    sendUserMessage(input: {
+      agentId: string;
+      sessionKey: string;
+      message: string;
+      metadata: Record<string, string>;
+    }): Promise<OpenClawGatewayReply>;
   };
 };
 
@@ -21,7 +26,18 @@ export function createIntentiveRelay(dependencies: IntentiveRelayDependencies) {
   return {
     async submitNormalizedEvent(event: NormalizedDiscordEvent): Promise<RelayResult> {
       const storedMessage = await dependencies.store.saveMessage(event);
-      const openClaw = await dependencies.openClaw.sendMessage(event);
+      const openClaw = await dependencies.openClaw.sendUserMessage({
+        agentId: "synthetic-agent",
+        sessionKey: "synthetic-session",
+        message: event.content,
+        metadata: {
+          discordMessageId: event.id,
+          discordChannelId: event.channelId,
+          userId: event.authorId,
+          expertId: "synthetic-expert",
+          assignmentId: "synthetic-assignment"
+        }
+      });
 
       return {
         accepted: true,

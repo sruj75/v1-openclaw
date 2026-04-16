@@ -37,7 +37,7 @@ export function classifyDiscordMessage(
   }
 
   if (event.authorId === routing.user.discordUserId) {
-    return classified(event, routing, "user", "user_message", false);
+    return classified(event, routing, "user", "user_message", true);
   }
 
   if (event.authorId === routing.expert.discordUserId) {

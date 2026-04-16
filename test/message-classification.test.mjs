@@ -57,7 +57,7 @@ test("classifies and persists user messages from mapped channels", async () => {
 
     assert.equal(message.messageType, "user_message");
     assert.equal(message.role, "user");
-    assert.equal(message.shouldForwardToOpenClaw, false);
+    assert.equal(message.shouldForwardToOpenClaw, true);
 
     const stored = selectStoredMessage(database, "discord-message-user-1");
     assert.equal(stored.message_type, "user_message");
@@ -108,7 +108,7 @@ test("relay processing persists expert messages without calling OpenClaw", async
   await withDatabase(async (database) => {
     let openClawCalls = 0;
     const openClaw = {
-      async sendMessage() {
+      async sendUserMessage() {
         openClawCalls += 1;
         return { status: "not_configured", message: "should not be called" };
       }
@@ -141,6 +141,59 @@ test("relay processing persists expert messages without calling OpenClaw", async
     assert.equal(expertReply.openClaw, null);
     assert.equal(expertAnnotation.openClaw, null);
     assert.equal(openClawCalls, 0);
+  });
+});
+
+test("mapped user messages create a session and call the OpenClaw gateway client", async () => {
+  await withDatabase(async (database) => {
+    const calls = [];
+    const openClaw = {
+      async sendUserMessage(request) {
+        calls.push(request);
+        return {
+          status: "ok",
+          traceId: "trace-local-1",
+          providerResponseId: "provider-response-1"
+        };
+      }
+    };
+
+    const result = await processDiscordMessagePayload(
+      {
+        id: "discord-message-route-user-1",
+        channelId: "discord-channel-private-alex",
+        author: { id: "discord-user-local-alex" },
+        content: "Please help me pick the first step.",
+        timestamp: "2026-04-16T00:02:50.000Z"
+      },
+      { database, openClaw }
+    );
+
+    assert.equal(result.classified.messageType, "user_message");
+    assert.equal(result.session?.openClawSessionKey, "discord:discord-channel-private-alex:agent:agent_local_alex");
+    assert.deepEqual(calls, [
+      {
+        agentId: "agent_local_alex",
+        sessionKey: "discord:discord-channel-private-alex:agent:agent_local_alex",
+        message: "Please help me pick the first step.",
+        metadata: {
+          discordMessageId: "discord-message-route-user-1",
+          discordChannelId: "discord-channel-private-alex",
+          userId: "user_local_alex",
+          expertId: "expert_local_river",
+          assignmentId: "assignment_local_alex_private_channel"
+        }
+      }
+    ]);
+
+    const stored = selectStoredMessage(database, "discord-message-route-user-1");
+    const routingMetadata = JSON.parse(stored.routing_metadata_json);
+
+    assert.equal(stored.session_id, "session_discord-channel-private-alex_agent_local_alex");
+    assert.equal(stored.openclaw_status, "ok");
+    assert.equal(stored.openclaw_trace_id, "trace-local-1");
+    assert.equal(stored.openclaw_provider_response_id, "provider-response-1");
+    assert.equal(routingMetadata.openClawSessionKey, "discord:discord-channel-private-alex:agent:agent_local_alex");
   });
 });
 
@@ -224,6 +277,7 @@ function selectStoredMessage(database, discordMessageId) {
     .prepare(
       `
       SELECT discord_message_id, user_id, expert_id, agent_id, role, message_type, raw_event_json
+        , session_id, routing_metadata_json, openclaw_status, openclaw_trace_id, openclaw_provider_response_id
       FROM messages
       WHERE discord_message_id = ?
       `
