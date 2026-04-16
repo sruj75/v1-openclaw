@@ -1,4 +1,5 @@
 import {
+  findPersistedMessageByDiscordId,
   persistAgentReplyMessage,
   persistClassifiedMessage,
   type PersistedMessage
@@ -14,6 +15,7 @@ export type ProcessDiscordMessageDependencies = {
   database: SqliteDatabase;
   openClaw: OpenClawGatewayClient;
   discord?: DiscordOutboundAdapter;
+  discordSelfUserId?: string;
 };
 
 export type ProcessedDiscordMessage = {
@@ -22,20 +24,39 @@ export type ProcessedDiscordMessage = {
   agentReply: PersistedMessage | null;
   session: ConversationSession | null;
   openClaw: OpenClawGatewayReply | null;
+  duplicate: boolean;
 };
+
+export const OPENCLAW_FAILURE_FALLBACK_REPLY = "I hit a relay hiccup. Please try again in a moment.";
 
 export async function processDiscordMessagePayload(
   payload: unknown,
   dependencies: ProcessDiscordMessageDependencies
 ): Promise<ProcessedDiscordMessage> {
-  const event = normalizeDiscordMessagePayload(payload);
+  const normalizedEvent = normalizeDiscordMessagePayload(payload);
+  const existingMessage = findPersistedMessageByDiscordId(dependencies.database, normalizedEvent.id);
+  const event = dependencies.discordSelfUserId === normalizedEvent.authorId
+    ? { ...normalizedEvent, isBot: true }
+    : normalizedEvent;
   const routing = resolveChannelRouting(dependencies.database, event.channelId);
   const classified = classifyDiscordMessage(event, routing);
+
+  if (existingMessage) {
+    return {
+      classified,
+      persisted: existingMessage,
+      agentReply: null,
+      session: null,
+      openClaw: null,
+      duplicate: true
+    };
+  }
+
   const session = classified.shouldForwardToOpenClaw && routing
     ? getOrCreateConversationSession(dependencies.database, routing)
     : null;
   const openClaw = classified.shouldForwardToOpenClaw && routing && session
-    ? await dependencies.openClaw.sendUserMessage({
+    ? await sendToOpenClawWithFailureCapture(dependencies.openClaw, {
         agentId: routing.agent.id,
         sessionKey: session.openClawSessionKey,
         message: event.content,
@@ -70,7 +91,43 @@ export async function processDiscordMessagePayload(
     persisted,
     agentReply,
     session,
-    openClaw
+    openClaw,
+    duplicate: false
+  };
+}
+
+async function sendToOpenClawWithFailureCapture(
+  openClaw: OpenClawGatewayClient,
+  request: Parameters<OpenClawGatewayClient["sendUserMessage"]>[0]
+): Promise<OpenClawGatewayReply> {
+  try {
+    const reply = await openClaw.sendUserMessage(request);
+    if (reply.status === "failed") {
+      return withFallbackReply(reply);
+    }
+
+    return reply;
+  } catch (error) {
+    return {
+      status: "failed",
+      message: error instanceof Error ? error.message : "Unknown OpenClaw failure",
+      reply: {
+        content: OPENCLAW_FAILURE_FALLBACK_REPLY
+      }
+    };
+  }
+}
+
+function withFallbackReply(reply: OpenClawGatewayReply): OpenClawGatewayReply {
+  if (reply.reply?.content) {
+    return reply;
+  }
+
+  return {
+    ...reply,
+    reply: {
+      content: OPENCLAW_FAILURE_FALLBACK_REPLY
+    }
   };
 }
 

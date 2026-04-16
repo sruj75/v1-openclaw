@@ -102,6 +102,38 @@ export function persistClassifiedMessage(
   };
 }
 
+export function findPersistedMessageByDiscordId(
+  database: SqliteDatabase,
+  discordMessageId: string
+): PersistedMessage | null {
+  const row = database
+    .prepare(
+      `
+      SELECT id, discord_message_id, message_type, role
+      FROM messages
+      WHERE discord_message_id = ?
+      LIMIT 1
+      `
+    )
+    .get(discordMessageId) as {
+      id: string;
+      discord_message_id: string;
+      message_type: string;
+      role: string;
+    } | undefined;
+
+  if (!row) {
+    return null;
+  }
+
+  return {
+    id: row.id,
+    discordMessageId: row.discord_message_id,
+    messageType: row.message_type,
+    role: row.role
+  };
+}
+
 export function persistAgentReplyMessage(
   database: SqliteDatabase,
   input: AgentReplyMessageInput
@@ -190,6 +222,7 @@ function buildRoutingMetadata(
     agentId: message.routing?.agent.id ?? null,
     discordChannelId: message.routing?.discordChannelId ?? message.event.channelId,
     sessionId: options.session?.id ?? null,
-    openClawSessionKey: options.session?.openClawSessionKey ?? null
+    openClawSessionKey: options.session?.openClawSessionKey ?? null,
+    openClawMessage: options.openClaw?.message ?? null
   };
 }

@@ -1,5 +1,5 @@
 export type OpenClawGatewayReply = {
-  status: "ok" | "not_configured";
+  status: "ok" | "not_configured" | "failed";
   message?: string;
   reply?: {
     content: string;

@@ -11,7 +11,10 @@ import { seedRoutingAssignments } from "../dist/db/seed.js";
 import { createRecordingDiscordAdapter } from "../dist/discord/index.js";
 import { normalizeDiscordMessagePayload } from "../dist/discord/index.js";
 import { classifyDiscordMessage } from "../dist/relay/classification.js";
-import { processDiscordMessagePayload } from "../dist/relay/discord.js";
+import {
+  OPENCLAW_FAILURE_FALLBACK_REPLY,
+  processDiscordMessagePayload
+} from "../dist/relay/discord.js";
 
 const seed = {
   users: [
@@ -251,6 +254,147 @@ test("mapped user messages persist and post mock agent replies", async () => {
   });
 });
 
+test("duplicate Discord message IDs do not repeat routing side effects", async () => {
+  await withDatabase(async (database) => {
+    let openClawCalls = 0;
+    const sentDiscordMessages = [];
+    const discord = createRecordingDiscordAdapter(sentDiscordMessages);
+    const openClaw = {
+      async sendUserMessage() {
+        openClawCalls += 1;
+        return {
+          status: "ok",
+          reply: {
+            content: "One reply only."
+          }
+        };
+      }
+    };
+    const payload = {
+      id: "discord-message-duplicate-1",
+      channelId: "discord-channel-private-alex",
+      author: { id: "discord-user-local-alex" },
+      content: "Please do not double send this.",
+      timestamp: "2026-04-16T00:06:00.000Z"
+    };
+
+    const first = await processDiscordMessagePayload(payload, { database, openClaw, discord });
+    const second = await processDiscordMessagePayload(payload, { database, openClaw, discord });
+
+    assert.equal(first.duplicate, false);
+    assert.equal(second.duplicate, true);
+    assert.equal(openClawCalls, 1);
+    assert.equal(sentDiscordMessages.length, 1);
+    assert.equal(countRows(database, "conversation_sessions"), 1);
+    assert.equal(countRows(database, "messages"), 2);
+  });
+});
+
+test("unknown channels are persisted as unrouteable without OpenClaw calls", async () => {
+  await withDatabase(async (database) => {
+    let openClawCalls = 0;
+    const openClaw = {
+      async sendUserMessage() {
+        openClawCalls += 1;
+        return { status: "ok" };
+      }
+    };
+
+    const result = await processDiscordMessagePayload(
+      {
+        id: "discord-message-unknown-channel-1",
+        channelId: "discord-channel-missing",
+        author: { id: "discord-user-local-alex" },
+        content: "Am I mapped?",
+        timestamp: "2026-04-16T00:07:00.000Z"
+      },
+      { database, openClaw }
+    );
+
+    const stored = selectStoredMessage(database, "discord-message-unknown-channel-1");
+
+    assert.equal(result.classified.messageType, "unknown_sender");
+    assert.equal(result.session, null);
+    assert.equal(openClawCalls, 0);
+    assert.equal(stored.message_type, "unknown_sender");
+    assert.equal(stored.agent_id, null);
+  });
+});
+
+test("bot and self events persist as system events without OpenClaw calls", async () => {
+  await withDatabase(async (database) => {
+    let openClawCalls = 0;
+    const openClaw = {
+      async sendUserMessage() {
+        openClawCalls += 1;
+        return { status: "ok" };
+      }
+    };
+
+    const result = await processDiscordMessagePayload(
+      {
+        id: "discord-message-self-1",
+        channelId: "discord-channel-private-alex",
+        author: { id: "discord-bot-self" },
+        content: "A message we posted ourselves.",
+        timestamp: "2026-04-16T00:08:00.000Z"
+      },
+      { database, openClaw, discordSelfUserId: "discord-bot-self" }
+    );
+
+    assert.equal(result.classified.messageType, "system_event");
+    assert.equal(result.session, null);
+    assert.equal(result.openClaw, null);
+    assert.equal(openClawCalls, 0);
+    assert.equal(selectStoredMessage(database, "discord-message-self-1").message_type, "system_event");
+  });
+});
+
+test("OpenClaw failures persist metadata and send a fixed fallback reply", async () => {
+  await withDatabase(async (database) => {
+    const sentDiscordMessages = [];
+    const discord = createRecordingDiscordAdapter(sentDiscordMessages);
+    const openClaw = {
+      async sendUserMessage() {
+        throw new Error("gateway timeout");
+      }
+    };
+
+    const result = await processDiscordMessagePayload(
+      {
+        id: "discord-message-openclaw-failure-1",
+        channelId: "discord-channel-private-alex",
+        author: { id: "discord-user-local-alex" },
+        content: "Please route this even if OpenClaw fails.",
+        timestamp: "2026-04-16T00:09:00.000Z"
+      },
+      { database, openClaw, discord }
+    );
+
+    const userMessage = selectStoredMessage(database, "discord-message-openclaw-failure-1");
+    const fallbackReply = selectStoredMessage(database, "discord-agent-reply-1");
+    const routingMetadata = JSON.parse(userMessage.routing_metadata_json);
+
+    assert.equal(result.openClaw?.status, "failed");
+    assert.equal(userMessage.openclaw_status, "failed");
+    assert.equal(routingMetadata.openClawMessage, "gateway timeout");
+    assert.deepEqual(sentDiscordMessages, [
+      {
+        channelId: "discord-channel-private-alex",
+        content: OPENCLAW_FAILURE_FALLBACK_REPLY,
+        metadata: {
+          originatingDiscordMessageId: "discord-message-openclaw-failure-1",
+          sessionId: "session_discord-channel-private-alex_agent_local_alex",
+          agentId: "agent_local_alex"
+        }
+      }
+    ]);
+    assert.equal(fallbackReply.content, OPENCLAW_FAILURE_FALLBACK_REPLY);
+    assert.equal(fallbackReply.openclaw_status, "failed");
+    assert.equal(fallbackReply.originating_message_id, result.persisted.id);
+  });
+});
+
 test("bot and system events are classified as system events", async () => {
   await withDatabase((database) => {
     const botMessage = classifyAndPersist(database, {
@@ -330,11 +474,15 @@ function selectStoredMessage(database, discordMessageId) {
   return database
     .prepare(
       `
-      SELECT discord_message_id, user_id, expert_id, agent_id, role, message_type, raw_event_json
+      SELECT discord_message_id, user_id, expert_id, agent_id, role, message_type, content, raw_event_json
         , session_id, originating_message_id, routing_metadata_json, openclaw_status, openclaw_trace_id, openclaw_provider_response_id
       FROM messages
       WHERE discord_message_id = ?
       `
     )
     .get(discordMessageId);
+}
+
+function countRows(database, tableName) {
+  return database.prepare(`SELECT COUNT(*) AS count FROM ${tableName}`).get().count;
 }
