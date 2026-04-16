@@ -20,7 +20,7 @@ test("synthetic normalized events can enter the relay without live credentials",
   );
 
   assert.equal(result.accepted, true);
-  assert.equal(result.storedMessage.event.authorRole, "user");
+  assert.equal(result.storedMessage.event.authorId, "discord-user-1");
   assert.equal(result.storedMessage.event.content, "Can you help me restart?");
   assert.equal(result.openClaw.status, "not_configured");
   assert.equal((await store.listMessages()).length, 1);
