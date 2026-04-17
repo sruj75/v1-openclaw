@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -121,6 +121,40 @@ test("seed upserts are repeatable and routing lookup reads SQLite", async () => 
     });
 
     assert.equal(resolveChannelRouting(database, "unknown-channel"), null);
+  } finally {
+    database.close();
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("phase 1 migrations apply cleanly in sequence", async () => {
+  const tempDir = await mkdtemp(join(tmpdir(), "intentive-migrations-"));
+  const database = new DatabaseSync(join(tempDir, "migrations.sqlite"));
+
+  try {
+    for (const migration of [
+      "migrations/001_phase1_persistence.sql",
+      "migrations/002_message_routing_audit.sql",
+      "migrations/003_agent_reply_link.sql"
+    ]) {
+      database.exec(await readFile(migration, { encoding: "utf8" }));
+    }
+
+    const columns = database
+      .prepare("PRAGMA table_info(messages)")
+      .all()
+      .map((column) => column.name);
+
+    assert.deepEqual(
+      [
+        "originating_message_id",
+        "routing_metadata_json",
+        "openclaw_status",
+        "openclaw_trace_id",
+        "openclaw_provider_response_id"
+      ].every((column) => columns.includes(column)),
+      true
+    );
   } finally {
     database.close();
     await rm(tempDir, { recursive: true, force: true });

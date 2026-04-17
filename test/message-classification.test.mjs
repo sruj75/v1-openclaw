@@ -296,6 +296,50 @@ test("duplicate Discord message IDs do not repeat routing side effects", async (
   });
 });
 
+test("concurrent duplicate Discord message IDs claim idempotency before side effects", async () => {
+  await withDatabase(async (database) => {
+    const sentDiscordMessages = [];
+    const discord = createRecordingDiscordAdapter(sentDiscordMessages);
+    const openClawCalls = [];
+    let releaseOpenClaw;
+    const openClaw = {
+      async sendUserMessage(request) {
+        openClawCalls.push(request);
+        return new Promise((resolve) => {
+          releaseOpenClaw = () =>
+            resolve({
+              status: "ok",
+              reply: {
+                content: "One concurrent reply only."
+              }
+            });
+        });
+      }
+    };
+    const payload = {
+      id: "discord-message-concurrent-duplicate-1",
+      channelId: "discord-channel-private-alex",
+      author: { id: "discord-user-local-alex" },
+      content: "Please claim this before calling OpenClaw.",
+      timestamp: "2026-04-16T00:06:30.000Z"
+    };
+
+    const firstPromise = processDiscordMessagePayload(payload, { database, openClaw, discord });
+    const second = await processDiscordMessagePayload(payload, { database, openClaw, discord });
+
+    assert.equal(second.duplicate, true);
+    assert.equal(openClawCalls.length, 1);
+    assert.equal(sentDiscordMessages.length, 0);
+
+    releaseOpenClaw();
+    const first = await firstPromise;
+
+    assert.equal(first.duplicate, false);
+    assert.equal(sentDiscordMessages.length, 1);
+    assert.equal(countRows(database, "messages"), 2);
+  });
+});
+
 test("unknown channels are persisted as unrouteable without OpenClaw calls", async () => {
   await withDatabase(async (database) => {
     let openClawCalls = 0;

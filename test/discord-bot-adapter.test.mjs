@@ -8,6 +8,7 @@ import test from "node:test";
 import { seedRoutingAssignments } from "../dist/db/seed.js";
 import {
   DISCORD_DIRECT_MESSAGES_INTENT,
+  DISCORD_GUILD_MESSAGES_INTENT,
   DISCORD_MESSAGE_CONTENT_INTENT,
   createDiscordBotAdapter
 } from "../dist/discord/index.js";
@@ -110,9 +111,14 @@ test("Discord bot adapter normalizes private messages and posts relay replies to
 
     assert.equal(socket.sentMessages[0].op, 2);
     assert.equal(socket.sentMessages[0].d.token, "test-bot-token");
+    assert.deepEqual(socket.sentMessages[0].d.properties, {
+      os: "node",
+      browser: "v1-openclaw",
+      device: "v1-openclaw"
+    });
     assert.equal(
       socket.sentMessages[0].d.intents,
-      DISCORD_DIRECT_MESSAGES_INTENT | DISCORD_MESSAGE_CONTENT_INTENT
+      DISCORD_GUILD_MESSAGES_INTENT | DISCORD_DIRECT_MESSAGES_INTENT | DISCORD_MESSAGE_CONTENT_INTENT
     );
 
     await socket.emitGatewayMessage({
@@ -120,10 +126,22 @@ test("Discord bot adapter normalizes private messages and posts relay replies to
       t: "READY",
       s: 1,
       d: {
+        session_id: "discord-session-1",
+        resume_gateway_url: "wss://discord.test/resume",
         user: {
           id: "discord-bot-self"
         }
       }
+    });
+    await socket.emitGatewayMessage({
+      op: 1
+    });
+    assert.deepEqual(socket.sentMessages.at(-1), {
+      op: 1,
+      d: 1
+    });
+    await socket.emitGatewayMessage({
+      op: 11
     });
 
     await socket.emitGatewayMessage({
@@ -173,6 +191,78 @@ test("Discord bot adapter normalizes private messages and posts relay replies to
     assert.equal(reply.channel_id, "discord-channel-private-alex");
     assert.equal(reply.role, "agent");
     assert.equal(reply.content, "Open the smallest file first.");
+  });
+});
+
+test("Discord bot adapter resumes when the gateway requests reconnect", async (t) => {
+  const sockets = [];
+  const adapter = createDiscordBotAdapter(
+    {
+      token: "test-bot-token",
+      selfUserId: "discord-bot-self",
+      gatewayUrl: "wss://discord.test/gateway",
+      apiBaseUrl: "https://discord.test/api/v10"
+    },
+    {
+      createWebSocket(url) {
+        const socket = new FakeGatewaySocket(url);
+        sockets.push(socket);
+        return socket;
+      },
+      fetch: async () => {
+        throw new Error("REST should not be called in reconnect test");
+      },
+      logger: silentLogger
+    }
+  );
+
+  t.after(() => adapter.close());
+
+  await adapter.connect({
+    onMessage() {}
+  });
+
+  const firstSocket = sockets[0];
+  await firstSocket.emitGatewayMessage({
+    op: 10,
+    d: { heartbeat_interval: 45_000 }
+  });
+  assert.equal(firstSocket.sentMessages[0].op, 2);
+
+  await firstSocket.emitGatewayMessage({
+    op: 0,
+    t: "READY",
+    s: 10,
+    d: {
+      session_id: "discord-session-resume-1",
+      resume_gateway_url: "wss://discord.test/resume",
+      user: {
+        id: "discord-bot-self"
+      }
+    }
+  });
+  await firstSocket.emitGatewayMessage({
+    op: 7,
+    s: 11
+  });
+
+  assert.equal(firstSocket.closed, true);
+  assert.equal(sockets.length, 2);
+  const secondSocket = sockets[1];
+  assert.equal(secondSocket.url, "wss://discord.test/resume");
+
+  await secondSocket.emitGatewayMessage({
+    op: 10,
+    d: { heartbeat_interval: 45_000 }
+  });
+
+  assert.deepEqual(secondSocket.sentMessages[0], {
+    op: 6,
+    d: {
+      token: "test-bot-token",
+      session_id: "discord-session-resume-1",
+      seq: 11
+    }
   });
 });
 

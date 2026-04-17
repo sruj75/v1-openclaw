@@ -16,7 +16,7 @@ test("OpenClaw client waits for connect.challenge and signs device connect", asy
       clientVersion: "0.1.0",
       clientPlatform: " Node ",
       clientId: " CLI ",
-      clientMode: " CLI ",
+      clientMode: " Operator ",
       deviceFamily: " Relay ",
       locale: "en-US",
       userAgent: "v1-openclaw-test/0.1.0"
@@ -54,7 +54,7 @@ test("OpenClaw client waits for connect.challenge and signs device connect", asy
     version: "0.1.0",
     platform: "node",
     deviceFamily: "relay",
-    mode: "cli"
+    mode: "operator"
   });
   assert.equal(connectFrame.params.role, "operator");
   assert.deepEqual(connectFrame.params.scopes, ["operator.read", "operator.write"]);
@@ -75,7 +75,7 @@ test("OpenClaw client waits for connect.challenge and signs device connect", asy
     "v3",
     identity.deviceId,
     "cli",
-    "cli",
+    "operator",
     "operator",
     "operator.read,operator.write",
     String(signedAtMs),
@@ -95,8 +95,9 @@ test("OpenClaw client waits for connect.challenge and signs device connect", asy
   );
 
   await socket.emitGatewayMessage(responseFrame(connectFrame.id, { connected: true }));
-  await waitFor(() => socket.sentFrames.length === 2);
-  const chatSendFrame = socket.sentFrames[1];
+  await waitFor(() => socket.sentFrames.length === 3);
+  await answerHistoryFrame(socket, 1);
+  const chatSendFrame = socket.sentFrames[2];
   assert.equal(chatSendFrame.method, "chat.send");
   assert.deepEqual(chatSendFrame.params, {
     sessionKey: "discord:discord-channel-1:agent:openclaw-agent-1",
@@ -172,8 +173,9 @@ test("OpenClaw client falls back to chat.history after terminal event without as
   await waitFor(() => socket.sentFrames.length === 1);
   await socket.emitGatewayMessage(responseFrame(socket.sentFrames[0].id, { connected: true }));
 
-  await waitFor(() => socket.sentFrames.length === 2);
-  await socket.emitGatewayMessage(responseFrame(socket.sentFrames[1].id, { runId: "run-history-1" }));
+  await waitFor(() => socket.sentFrames.length === 3);
+  await answerHistoryFrame(socket, 1);
+  await socket.emitGatewayMessage(responseFrame(socket.sentFrames[2].id, { runId: "run-history-1" }));
   await socket.emitGatewayMessage({
     v: 3,
     type: "event",
@@ -185,8 +187,8 @@ test("OpenClaw client falls back to chat.history after terminal event without as
     }
   });
 
-  await waitFor(() => socket.sentFrames.length === 3);
-  const historyFrame = socket.sentFrames[2];
+  await waitFor(() => socket.sentFrames.length === 4);
+  const historyFrame = socket.sentFrames[3];
   assert.equal(historyFrame.method, "chat.history");
   assert.deepEqual(historyFrame.params, {
     sessionKey: "discord:discord-channel-1:agent:openclaw-agent-1"
@@ -244,11 +246,12 @@ test("OpenClaw client polls chat.history when terminal events are not delivered"
   await waitFor(() => socket.sentFrames.length === 1);
   await socket.emitGatewayMessage(responseFrame(socket.sentFrames[0].id, { connected: true }));
 
-  await waitFor(() => socket.sentFrames.length === 2);
-  await socket.emitGatewayMessage(responseFrame(socket.sentFrames[1].id, { runId: "run-history-poll-1" }));
+  await waitFor(() => socket.sentFrames.length === 3);
+  await answerHistoryFrame(socket, 1);
+  await socket.emitGatewayMessage(responseFrame(socket.sentFrames[2].id, { runId: "run-history-poll-1" }));
 
-  await waitFor(() => socket.sentFrames.length === 3, 1_300);
-  const historyFrame = socket.sentFrames[2];
+  await waitFor(() => socket.sentFrames.length === 4, 1_300);
+  const historyFrame = socket.sentFrames[3];
   assert.equal(historyFrame.method, "chat.history");
   await socket.emitGatewayMessage(
     responseFrame(historyFrame.id, {
@@ -301,8 +304,9 @@ test("OpenClaw client surfaces chat error events without waiting for history", a
   await waitFor(() => socket.sentFrames.length === 1);
   await socket.emitGatewayMessage(responseFrame(socket.sentFrames[0].id, { connected: true }));
 
-  await waitFor(() => socket.sentFrames.length === 2);
-  await socket.emitGatewayMessage(responseFrame(socket.sentFrames[1].id, { runId: "run-error-1" }));
+  await waitFor(() => socket.sentFrames.length === 3);
+  await answerHistoryFrame(socket, 1);
+  await socket.emitGatewayMessage(responseFrame(socket.sentFrames[2].id, { runId: "run-error-1" }));
   await socket.emitGatewayMessage({
     v: 3,
     type: "event",
@@ -321,7 +325,158 @@ test("OpenClaw client surfaces chat error events without waiting for history", a
     message: "LLM error: API key expired",
     traceId: "trace-error-1"
   });
-  assert.equal(socket.sentFrames.length, 2);
+  assert.equal(socket.sentFrames.length, 3);
+
+  client.close();
+});
+
+test("OpenClaw client ignores history replies that predate the current send", async () => {
+  const identity = await createDeviceIdentity();
+  const sockets = [];
+  const client = createOpenClawGatewayClient(
+    {
+      gatewayUrl: "wss://openclaw.test/gateway",
+      deviceIdentityJwk: identity.privateJwk,
+      requestTimeoutMs: 2_500
+    },
+    {
+      createWebSocket(url) {
+        const socket = new FakeOpenClawSocket(url);
+        sockets.push(socket);
+        return socket;
+      },
+      now: () => signedAtMs
+    }
+  );
+
+  const responsePromise = client.sendUserMessage(openClawRequest());
+  let settled = false;
+  const observedResponse = responsePromise.finally(() => {
+    settled = true;
+  });
+  const socket = sockets[0];
+
+  await socket.emitGatewayMessage({
+    v: 3,
+    type: "event",
+    event: "connect.challenge",
+    payload: { nonce: "challenge-nonce-stale-history" }
+  });
+  await waitFor(() => socket.sentFrames.length === 1);
+  await socket.emitGatewayMessage(responseFrame(socket.sentFrames[0].id, { connected: true }));
+
+  await waitFor(() => socket.sentFrames.length === 3);
+  await answerHistoryFrame(socket, 1, [
+    { id: "old-assistant-message", role: "assistant", content: "Old answer." }
+  ]);
+  await socket.emitGatewayMessage(responseFrame(socket.sentFrames[2].id, { runId: "run-stale-history" }));
+
+  await waitFor(() => socket.sentFrames.length === 4, 1_300);
+  await socket.emitGatewayMessage(
+    responseFrame(socket.sentFrames[3].id, {
+      messages: [
+        { id: "old-assistant-message", role: "assistant", content: "Old answer." }
+      ]
+    })
+  );
+  await delay(50);
+  assert.equal(settled, false);
+
+  await socket.emitGatewayMessage({
+    v: 3,
+    type: "event",
+    event: "chat",
+    payload: {
+      runId: "run-stale-history",
+      sessionKey: "discord:discord-channel-1:agent:openclaw-agent-1",
+      state: "final",
+      message: {
+        id: "runtime-message-fresh",
+        role: "assistant",
+        content: "Fresh answer."
+      }
+    }
+  });
+
+  assert.deepEqual(await observedResponse, {
+    status: "ok",
+    reply: {
+      content: "Fresh answer.",
+      runtimeMessageId: "runtime-message-fresh"
+    }
+  });
+
+  client.close();
+});
+
+test("OpenClaw client waits for a fresh challenge after reconnect", async () => {
+  const identity = await createDeviceIdentity();
+  const sockets = [];
+  const client = createOpenClawGatewayClient(
+    {
+      gatewayUrl: "wss://openclaw.test/gateway",
+      deviceIdentityJwk: identity.privateJwk,
+      requestTimeoutMs: 1_500
+    },
+    {
+      createWebSocket(url) {
+        const socket = new FakeOpenClawSocket(url);
+        sockets.push(socket);
+        return socket;
+      },
+      now: () => signedAtMs
+    }
+  );
+
+  const firstResponse = client.sendUserMessage(openClawRequest());
+  const firstSocket = sockets[0];
+  await completeGatewaySend(firstSocket, "challenge-nonce-reconnect-1", "run-reconnect-1", "First answer.");
+  assert.equal((await firstResponse).reply.content, "First answer.");
+
+  await firstSocket.emitClose();
+
+  const secondResponse = client.sendUserMessage({
+    ...openClawRequest(),
+    message: "Give me the second step.",
+    metadata: {
+      ...openClawRequest().metadata,
+      discordMessageId: "discord-message-2"
+    }
+  });
+  await waitFor(() => sockets.length === 2);
+  const secondSocket = sockets[1];
+  assert.equal(secondSocket.sentFrames.length, 0);
+
+  await secondSocket.emitGatewayMessage({
+    v: 3,
+    type: "event",
+    event: "connect.challenge",
+    payload: { nonce: "challenge-nonce-reconnect-2" }
+  });
+  await waitFor(() => secondSocket.sentFrames.length === 1);
+  assert.equal(secondSocket.sentFrames[0].method, "connect");
+  assert.equal(secondSocket.sentFrames[0].params.device.nonce, "challenge-nonce-reconnect-2");
+
+  await secondSocket.emitGatewayMessage(responseFrame(secondSocket.sentFrames[0].id, { connected: true }));
+  await waitFor(() => secondSocket.sentFrames.length === 3);
+  await answerHistoryFrame(secondSocket, 1);
+  await secondSocket.emitGatewayMessage(responseFrame(secondSocket.sentFrames[2].id, { runId: "run-reconnect-2" }));
+  await secondSocket.emitGatewayMessage({
+    v: 3,
+    type: "event",
+    event: "chat",
+    payload: {
+      runId: "run-reconnect-2",
+      sessionKey: "discord:discord-channel-1:agent:openclaw-agent-1",
+      state: "final",
+      message: {
+        id: "runtime-message-reconnect-2",
+        role: "assistant",
+        content: "Second answer."
+      }
+    }
+  });
+  assert.equal((await secondResponse).reply.content, "Second answer.");
 
   client.close();
 });
@@ -345,6 +500,13 @@ class FakeOpenClawSocket {
 
   close() {
     this.closed = true;
+  }
+
+  async emitClose() {
+    this.closed = true;
+    for (const listener of this.listeners.get("close") ?? []) {
+      await listener({});
+    }
   }
 
   async emitGatewayMessage(payload) {
@@ -376,6 +538,45 @@ function responseFrame(id, result) {
     ok: true,
     payload: result
   };
+}
+
+async function completeGatewaySend(socket, nonce, runId, content) {
+  await socket.emitGatewayMessage({
+    v: 3,
+    type: "event",
+    event: "connect.challenge",
+    payload: { nonce }
+  });
+  await waitFor(() => socket.sentFrames.length === 1);
+  await socket.emitGatewayMessage(responseFrame(socket.sentFrames[0].id, { connected: true }));
+  await waitFor(() => socket.sentFrames.length === 3);
+  await answerHistoryFrame(socket, 1);
+  await socket.emitGatewayMessage(responseFrame(socket.sentFrames[2].id, { runId }));
+  await socket.emitGatewayMessage({
+    v: 3,
+    type: "event",
+    event: "chat",
+    payload: {
+      runId,
+      sessionKey: "discord:discord-channel-1:agent:openclaw-agent-1",
+      state: "final",
+      message: {
+        id: `${runId}-message`,
+        role: "assistant",
+        content
+      }
+    }
+  });
+}
+
+async function answerHistoryFrame(socket, frameIndex, messages = []) {
+  await waitFor(() => socket.sentFrames[frameIndex]?.method === "chat.history");
+  const historyFrame = socket.sentFrames[frameIndex];
+  await socket.emitGatewayMessage(responseFrame(historyFrame.id, { messages }));
+}
+
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 async function createDeviceIdentity() {

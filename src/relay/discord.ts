@@ -63,6 +63,9 @@ export async function processNormalizedDiscordEvent(
   const session = classified.shouldForwardToOpenClaw && routing
     ? getOrCreateConversationSession(dependencies.database, routing)
     : null;
+  const persisted = persistClassifiedMessage(dependencies.database, classified, {
+    session
+  });
   const openClaw = classified.shouldForwardToOpenClaw && routing && session
     ? await sendToOpenClawWithFailureCapture(dependencies.openClaw, {
         agentId: routing.agent.openClawAgentId,
@@ -77,10 +80,12 @@ export async function processNormalizedDiscordEvent(
         }
       })
     : null;
-  const persisted = persistClassifiedMessage(dependencies.database, classified, {
-    session,
-    openClaw
-  });
+  const updatedPersisted = openClaw
+    ? persistClassifiedMessage(dependencies.database, classified, {
+        session,
+        openClaw
+      })
+    : persisted;
   const agentReply = openClaw?.reply && routing && session
     ? await postAndPersistAgentReply({
         database: dependencies.database,
@@ -88,7 +93,7 @@ export async function processNormalizedDiscordEvent(
         routingAgentId: routing.agent.id,
         channelId: event.channelId,
         originatingDiscordMessageId: event.id,
-        originatingMessageId: persisted.id,
+        originatingMessageId: updatedPersisted.id,
         session,
         openClaw
       })
@@ -96,7 +101,7 @@ export async function processNormalizedDiscordEvent(
 
   return {
     classified,
-    persisted,
+    persisted: updatedPersisted,
     agentReply,
     session,
     openClaw,

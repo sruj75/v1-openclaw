@@ -77,9 +77,14 @@ type ChatTerminalWaiter = {
   timeoutId: number;
 };
 
+type AssistantHistoryCursor = {
+  index: number;
+  runtimeMessageId?: string;
+};
+
 const PROTOCOL_VERSION = 3;
 const DEFAULT_CLIENT_ID = "cli";
-const DEFAULT_CLIENT_MODE = "cli";
+const DEFAULT_CLIENT_MODE = "operator";
 const DEFAULT_CLIENT_VERSION = "0.1.0";
 const DEFAULT_CLIENT_PLATFORM = "node";
 const DEFAULT_DEVICE_FAMILY = "server";
@@ -139,6 +144,7 @@ export function createOpenClawGatewayClient(
       request.metadata.discordMessageId,
       "OpenClaw idempotency key"
     );
+    const historyCursorPromise = readAssistantHistoryCursor(sessionKey).catch(() => null);
 
     let sendResult: unknown;
     try {
@@ -156,10 +162,14 @@ export function createOpenClawGatewayClient(
 
     const runId = readStringField(sendResult, ["runId", "run_id", "id"]);
     let shouldStopHistoryPolling = false;
-    const terminalEvent: ChatTerminalEvent = await Promise.race([
-      waitForChatTerminalEvent(sessionKey, runId),
-      waitForAssistantReplyFromHistory(sessionKey, () => shouldStopHistoryPolling)
-    ])
+    const terminalEventWaiters: Promise<ChatTerminalEvent>[] = [
+      waitForChatTerminalEvent(sessionKey, runId)
+    ];
+    terminalEventWaiters.push(
+      waitForAssistantReplyFromHistory(sessionKey, historyCursorPromise, () => shouldStopHistoryPolling)
+    );
+
+    const terminalEvent: ChatTerminalEvent = await Promise.race(terminalEventWaiters)
       .catch((error) => ({
         kind: "error" as const,
         sessionKey,
@@ -189,7 +199,10 @@ export function createOpenClawGatewayClient(
       };
     }
 
-    const historyReply = await readAssistantReplyFromHistory(sessionKey).catch(() => null);
+    const historyCursor = await historyCursorPromise;
+    const historyReply = historyCursor
+      ? await readAssistantReplyFromHistory(sessionKey, historyCursor).catch(() => null)
+      : null;
     if (historyReply) {
       return buildOkReply({
         content: historyReply.content,
@@ -246,6 +259,9 @@ export function createOpenClawGatewayClient(
         rejectChallenge?.(new Error("OpenClaw gateway closed before connect completed"));
       }
 
+      challengeNonce = null;
+      resolveChallenge = null;
+      rejectChallenge = null;
       connected = false;
       connectPromise = null;
     });
@@ -418,10 +434,6 @@ export function createOpenClawGatewayClient(
   }
 
   function waitForConnectChallenge(): Promise<string> {
-    if (challengeNonce) {
-      return Promise.resolve(challengeNonce);
-    }
-
     return new Promise((resolve, reject) => {
       resolveChallenge = resolve;
       rejectChallenge = reject;
@@ -463,15 +475,35 @@ export function createOpenClawGatewayClient(
     return event;
   }
 
-  async function readAssistantReplyFromHistory(
-    sessionKey: string
-  ): Promise<{ content: string; runtimeMessageId?: string } | null> {
+  async function readAssistantHistoryCursor(sessionKey: string): Promise<AssistantHistoryCursor> {
     const history = await sendRequest("chat.history", { sessionKey });
     const messages = readHistoryMessages(history);
     for (let index = messages.length - 1; index >= 0; index -= 1) {
+      if (isAssistantHistoryMessage(messages[index])) {
+        return {
+          index,
+          runtimeMessageId: readStringField(messages[index], ["id", "messageId", "message_id"])
+        };
+      }
+    }
+
+    return { index: -1 };
+  }
+
+  async function readAssistantReplyFromHistory(
+    sessionKey: string,
+    cursor: AssistantHistoryCursor
+  ): Promise<{ content: string; runtimeMessageId?: string } | null> {
+    const history = await sendRequest("chat.history", { sessionKey });
+    const messages = readHistoryMessages(history);
+    for (let index = messages.length - 1; index > cursor.index; index -= 1) {
       const message = messages[index];
-      const role = readStringField(message, ["role", "authorRole", "author_role"]);
-      if (role !== "assistant" && role !== "agent") {
+      if (!isAssistantHistoryMessage(message)) {
+        continue;
+      }
+
+      const runtimeMessageId = readStringField(message, ["id", "messageId", "message_id"]);
+      if (runtimeMessageId && runtimeMessageId === cursor.runtimeMessageId) {
         continue;
       }
 
@@ -479,7 +511,7 @@ export function createOpenClawGatewayClient(
       if (content) {
         return {
           content,
-          runtimeMessageId: readStringField(message, ["id", "messageId", "message_id"])
+          runtimeMessageId
         };
       }
     }
@@ -489,12 +521,17 @@ export function createOpenClawGatewayClient(
 
   async function waitForAssistantReplyFromHistory(
     sessionKey: string,
+    cursorPromise: Promise<AssistantHistoryCursor | null>,
     shouldStop: () => boolean
   ): Promise<ChatTerminalEvent> {
     await delay(Math.min(1_000, requestTimeoutMs));
+    const cursor = await cursorPromise;
+    if (!cursor) {
+      return new Promise(() => undefined);
+    }
 
     while (!shouldStop()) {
-      const historyReply = await readAssistantReplyFromHistory(sessionKey).catch(() => null);
+      const historyReply = await readAssistantReplyFromHistory(sessionKey, cursor).catch(() => null);
       if (historyReply) {
         return {
           kind: "final",
@@ -527,6 +564,9 @@ export function createOpenClawGatewayClient(
 
       socket?.close(1000, "Intentive relay shutdown");
       socket = null;
+      challengeNonce = null;
+      resolveChallenge = null;
+      rejectChallenge = null;
       connected = false;
       connectPromise = null;
     }
@@ -647,6 +687,11 @@ function readHistoryMessages(history: unknown): Record<string, unknown>[] {
 
   const messages = history.messages ?? history.items ?? history.entries;
   return Array.isArray(messages) ? messages.filter(isRecord) : [];
+}
+
+function isAssistantHistoryMessage(message: Record<string, unknown>): boolean {
+  const role = readStringField(message, ["role", "authorRole", "author_role"]);
+  return role === "assistant" || role === "agent";
 }
 
 function readMessageObject(payload: Record<string, unknown>): Record<string, unknown> | null {

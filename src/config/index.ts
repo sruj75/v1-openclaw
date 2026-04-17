@@ -47,7 +47,7 @@ export function loadOpenClawGatewayConfig(
     clientVersion: readOptionalString(env.OPENCLAW_CLIENT_VERSION) ?? "0.1.0",
     clientPlatform: readOptionalString(env.OPENCLAW_CLIENT_PLATFORM) ?? "node",
     clientId: readOptionalString(env.OPENCLAW_CLIENT_ID) ?? "cli",
-    clientMode: readOptionalString(env.OPENCLAW_CLIENT_MODE) ?? "cli",
+    clientMode: readOptionalString(env.OPENCLAW_CLIENT_MODE) ?? "operator",
     deviceFamily: readOptionalString(env.OPENCLAW_DEVICE_FAMILY) ?? "server",
     locale: readOptionalString(env.OPENCLAW_LOCALE) ?? "en-US",
     userAgent: readOptionalString(env.OPENCLAW_USER_AGENT) ?? "v1-openclaw/0.1.0",

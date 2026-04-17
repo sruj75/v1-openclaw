@@ -28,10 +28,11 @@ export type DiscordOutboundAdapter = {
   sendMessage(request: DiscordSendMessageRequest): Promise<DiscordSendMessageResult>;
 };
 
+export const DISCORD_GUILD_MESSAGES_INTENT = 1 << 9;
 export const DISCORD_DIRECT_MESSAGES_INTENT = 1 << 12;
 export const DISCORD_MESSAGE_CONTENT_INTENT = 1 << 15;
 export const DEFAULT_DISCORD_GATEWAY_INTENTS =
-  DISCORD_DIRECT_MESSAGES_INTENT | DISCORD_MESSAGE_CONTENT_INTENT;
+  DISCORD_GUILD_MESSAGES_INTENT | DISCORD_DIRECT_MESSAGES_INTENT | DISCORD_MESSAGE_CONTENT_INTENT;
 
 export type DiscordBotAdapterConfig = {
   token: string;
@@ -93,9 +94,11 @@ const DISCORD_API_BASE_URL = "https://discord.com/api/v10";
 const GATEWAY_OPCODE_DISPATCH = 0;
 const GATEWAY_OPCODE_HEARTBEAT = 1;
 const GATEWAY_OPCODE_IDENTIFY = 2;
+const GATEWAY_OPCODE_RESUME = 6;
 const GATEWAY_OPCODE_RECONNECT = 7;
 const GATEWAY_OPCODE_INVALID_SESSION = 9;
 const GATEWAY_OPCODE_HELLO = 10;
+const GATEWAY_OPCODE_HEARTBEAT_ACK = 11;
 
 export function createDiscordBotAdapter(
   config: DiscordBotAdapterConfig,
@@ -113,7 +116,11 @@ export function createDiscordBotAdapter(
 
   let socket: DiscordGatewaySocket | null = null;
   let heartbeatInterval: unknown;
+  let heartbeatAcknowledged = true;
   let lastSequence: number | null = null;
+  let sessionId: string | undefined;
+  let resumeGatewayUrl: string | undefined;
+  let shouldResumeNextConnection = false;
   let selfUserId = config.selfUserId;
   let onMessage: DiscordInboundMessageHandler | undefined;
 
@@ -124,14 +131,33 @@ export function createDiscordBotAdapter(
     }
 
     if (envelope.op === GATEWAY_OPCODE_HELLO) {
-      sendIdentify();
       startHeartbeat(envelope.d);
+      if (shouldResumeNextConnection && sessionId) {
+        sendResume();
+      } else {
+        sendIdentify();
+      }
+      return;
+    }
+
+    if (envelope.op === GATEWAY_OPCODE_HEARTBEAT) {
+      sendHeartbeat();
+      return;
+    }
+
+    if (envelope.op === GATEWAY_OPCODE_HEARTBEAT_ACK) {
+      heartbeatAcknowledged = true;
       return;
     }
 
     if (envelope.op === GATEWAY_OPCODE_RECONNECT || envelope.op === GATEWAY_OPCODE_INVALID_SESSION) {
-      logger.warn("Discord gateway requested reconnect; close the adapter and restart the service.");
-      socket?.close(1012, "Discord gateway reconnect requested");
+      const canResume = envelope.op === GATEWAY_OPCODE_RECONNECT || envelope.d === true;
+      logger.warn(
+        canResume
+          ? "Discord gateway requested reconnect; attempting to resume the session."
+          : "Discord gateway invalidated the session; reconnecting with a fresh identify."
+      );
+      reconnectGateway(canResume);
       return;
     }
 
@@ -140,7 +166,10 @@ export function createDiscordBotAdapter(
     }
 
     if (envelope.t === "READY") {
-      selfUserId = readReadyUserId(envelope.d) ?? selfUserId;
+      const ready = readReadyState(envelope.d);
+      selfUserId = ready.selfUserId ?? selfUserId;
+      sessionId = ready.sessionId ?? sessionId;
+      resumeGatewayUrl = ready.resumeGatewayUrl ?? resumeGatewayUrl;
       return;
     }
 
@@ -157,16 +186,29 @@ export function createDiscordBotAdapter(
   }
 
   function sendIdentify(): void {
+    shouldResumeNextConnection = false;
     sendGatewayPayload({
       op: GATEWAY_OPCODE_IDENTIFY,
       d: {
         token,
         intents,
         properties: {
-          $os: "node",
-          $browser: "v1-openclaw",
-          $device: "v1-openclaw"
+          os: "node",
+          browser: "v1-openclaw",
+          device: "v1-openclaw"
         }
+      }
+    });
+  }
+
+  function sendResume(): void {
+    shouldResumeNextConnection = false;
+    sendGatewayPayload({
+      op: GATEWAY_OPCODE_RESUME,
+      d: {
+        token,
+        session_id: sessionId,
+        seq: lastSequence
       }
     });
   }
@@ -182,8 +224,43 @@ export function createDiscordBotAdapter(
     }
 
     heartbeatInterval = scheduleHeartbeat(() => {
-      sendGatewayPayload({ op: GATEWAY_OPCODE_HEARTBEAT, d: lastSequence });
+      if (!heartbeatAcknowledged) {
+        logger.warn("Discord gateway heartbeat ACK was not received; closing stale connection.");
+        socket?.close(4000, "Discord gateway heartbeat ACK not received");
+        return;
+      }
+
+      sendHeartbeat();
     }, heartbeatIntervalMs);
+  }
+
+  function sendHeartbeat(): void {
+    heartbeatAcknowledged = false;
+    sendGatewayPayload({ op: GATEWAY_OPCODE_HEARTBEAT, d: lastSequence });
+  }
+
+  function reconnectGateway(canResume: boolean): void {
+    if (heartbeatInterval !== undefined) {
+      cancelHeartbeat(heartbeatInterval);
+      heartbeatInterval = undefined;
+    }
+
+    heartbeatAcknowledged = true;
+    shouldResumeNextConnection = canResume && sessionId !== undefined;
+    socket?.close(1012, "Discord gateway reconnect requested");
+    socket = createWebSocket(shouldResumeNextConnection ? resumeGatewayUrl ?? gatewayUrl : gatewayUrl);
+    attachSocketListeners(socket);
+  }
+
+  function attachSocketListeners(nextSocket: DiscordGatewaySocket): void {
+    nextSocket.addEventListener("message", async (event) => {
+      try {
+        await handleSocketMessage(event);
+      } catch (error) {
+        logger.error(error);
+        throw error;
+      }
+    });
   }
 
   function sendGatewayPayload(payload: unknown): void {
@@ -198,14 +275,7 @@ export function createDiscordBotAdapter(
     async connect(input) {
       onMessage = input.onMessage;
       socket = createWebSocket(gatewayUrl);
-      socket.addEventListener("message", async (event) => {
-        try {
-          await handleSocketMessage(event);
-        } catch (error) {
-          logger.error(error);
-          throw error;
-        }
-      });
+      attachSocketListeners(socket);
       logger.info("Discord bot adapter connected to gateway.");
     },
 
@@ -217,6 +287,7 @@ export function createDiscordBotAdapter(
 
       socket?.close(1000, "Intentive relay shutdown");
       socket = null;
+      shouldResumeNextConnection = false;
     },
 
     getSelfUserId() {
@@ -331,12 +402,27 @@ function shouldIgnoreInboundDiscordMessage(event: NormalizedDiscordEvent, selfUs
   return event.isBot || event.isSystem || (selfUserId !== undefined && event.authorId === selfUserId);
 }
 
-function readReadyUserId(data: unknown): string | undefined {
-  if (!isRecord(data) || !isRecord(data.user)) {
-    return undefined;
+function readReadyState(data: unknown): {
+  selfUserId?: string;
+  sessionId?: string;
+  resumeGatewayUrl?: string;
+} {
+  if (!isRecord(data)) {
+    return {};
   }
 
-  return typeof data.user.id === "string" && data.user.id.trim() !== "" ? data.user.id : undefined;
+  return {
+    selfUserId: isRecord(data.user) && typeof data.user.id === "string" && data.user.id.trim() !== ""
+      ? data.user.id
+      : undefined,
+    sessionId: typeof data.session_id === "string" && data.session_id.trim() !== ""
+      ? data.session_id
+      : undefined,
+    resumeGatewayUrl:
+      typeof data.resume_gateway_url === "string" && data.resume_gateway_url.trim() !== ""
+        ? data.resume_gateway_url
+        : undefined
+  };
 }
 
 function readHeartbeatInterval(data: unknown): number | undefined {

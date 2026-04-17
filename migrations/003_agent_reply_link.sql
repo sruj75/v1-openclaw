@@ -1,1 +1,1 @@
-ALTER TABLE messages ADD COLUMN originating_message_id TEXT REFERENCES messages(id);
+-- Column is included in 001_phase1_persistence.sql for fresh Phase 1 databases.
