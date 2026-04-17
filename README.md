@@ -95,6 +95,16 @@ npm run smoke:phase1
 See `docs/phase1-private-channel-smoke.md` for required environment variables,
 verification queries, and known Phase 1 limitations.
 
+Phase 2 manual-pilot observability smoke:
+
+```sh
+npm run context:set -- --agent-id agent_local_alex --context-version alex-week-2026-04-17
+```
+
+See `docs/phase2-manual-pilot-smoke.md` for the manual workspace convention,
+OpenRouter Broadcast to Braintrust setup, SQLite verification queries, privacy
+notes, and HITL validation record.
+
 ## Module Homes
 
 - `src/config`: environment and service configuration
