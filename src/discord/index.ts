@@ -99,6 +99,7 @@ const GATEWAY_OPCODE_RECONNECT = 7;
 const GATEWAY_OPCODE_INVALID_SESSION = 9;
 const GATEWAY_OPCODE_HELLO = 10;
 const GATEWAY_OPCODE_HEARTBEAT_ACK = 11;
+const MAX_GATEWAY_RECONNECT_ATTEMPTS = 3;
 
 export function createDiscordBotAdapter(
   config: DiscordBotAdapterConfig,
@@ -121,8 +122,11 @@ export function createDiscordBotAdapter(
   let sessionId: string | undefined;
   let resumeGatewayUrl: string | undefined;
   let shouldResumeNextConnection = false;
+  let reconnectAttempts = 0;
+  let isShuttingDown = false;
   let selfUserId = config.selfUserId;
   let onMessage: DiscordInboundMessageHandler | undefined;
+  const ignoredCloseSockets = new Set<DiscordGatewaySocket>();
 
   async function handleSocketMessage(event: { data?: unknown }): Promise<void> {
     const envelope = parseGatewayEnvelope(event.data);
@@ -170,6 +174,7 @@ export function createDiscordBotAdapter(
       selfUserId = ready.selfUserId ?? selfUserId;
       sessionId = ready.sessionId ?? sessionId;
       resumeGatewayUrl = ready.resumeGatewayUrl ?? resumeGatewayUrl;
+      reconnectAttempts = 0;
       return;
     }
 
@@ -234,22 +239,30 @@ export function createDiscordBotAdapter(
     }, heartbeatIntervalMs);
   }
 
-  function sendHeartbeat(): void {
-    heartbeatAcknowledged = false;
-    sendGatewayPayload({ op: GATEWAY_OPCODE_HEARTBEAT, d: lastSequence });
-  }
-
-  function reconnectGateway(canResume: boolean): void {
+  function stopHeartbeat(): void {
     if (heartbeatInterval !== undefined) {
       cancelHeartbeat(heartbeatInterval);
       heartbeatInterval = undefined;
     }
 
     heartbeatAcknowledged = true;
+  }
+
+  function sendHeartbeat(): void {
+    heartbeatAcknowledged = false;
+    sendGatewayPayload({ op: GATEWAY_OPCODE_HEARTBEAT, d: lastSequence });
+  }
+
+  function reconnectGateway(canResume: boolean): void {
+    stopHeartbeat();
     shouldResumeNextConnection = canResume && sessionId !== undefined;
-    socket?.close(1012, "Discord gateway reconnect requested");
-    socket = createWebSocket(shouldResumeNextConnection ? resumeGatewayUrl ?? gatewayUrl : gatewayUrl);
-    attachSocketListeners(socket);
+    const closingSocket = socket;
+    if (closingSocket) {
+      ignoredCloseSockets.add(closingSocket);
+      closingSocket.close(1012, "Discord gateway reconnect requested");
+    }
+
+    openGatewaySocket(shouldResumeNextConnection ? resumeGatewayUrl ?? gatewayUrl : gatewayUrl);
   }
 
   function attachSocketListeners(nextSocket: DiscordGatewaySocket): void {
@@ -258,9 +271,51 @@ export function createDiscordBotAdapter(
         await handleSocketMessage(event);
       } catch (error) {
         logger.error(error);
-        throw error;
+        handleUnexpectedGatewayDisconnect(nextSocket, true, "Discord gateway message handling failed");
       }
     });
+    nextSocket.addEventListener("error", () => {
+      logger.error("Discord gateway socket error; reconnecting.");
+      handleUnexpectedGatewayDisconnect(nextSocket, true, "Discord gateway socket error");
+    });
+    nextSocket.addEventListener("close", () => {
+      if (ignoredCloseSockets.delete(nextSocket)) {
+        return;
+      }
+
+      logger.warn("Discord gateway socket closed unexpectedly; reconnecting.");
+      handleUnexpectedGatewayDisconnect(nextSocket, true, "Discord gateway socket closed");
+    });
+  }
+
+  function openGatewaySocket(url: string): void {
+    socket = createWebSocket(url);
+    attachSocketListeners(socket);
+  }
+
+  function handleUnexpectedGatewayDisconnect(
+    disconnectedSocket: DiscordGatewaySocket,
+    canResume: boolean,
+    closeReason: string
+  ): void {
+    if (isShuttingDown || disconnectedSocket !== socket) {
+      return;
+    }
+
+    if (reconnectAttempts >= MAX_GATEWAY_RECONNECT_ATTEMPTS) {
+      stopHeartbeat();
+      socket = null;
+      logger.error(`Discord gateway reconnect limit reached after ${reconnectAttempts} attempts.`);
+      return;
+    }
+
+    reconnectAttempts += 1;
+    ignoredCloseSockets.add(disconnectedSocket);
+    disconnectedSocket.close(1011, closeReason);
+    stopHeartbeat();
+    socket = null;
+    shouldResumeNextConnection = canResume && sessionId !== undefined;
+    openGatewaySocket(shouldResumeNextConnection ? resumeGatewayUrl ?? gatewayUrl : gatewayUrl);
   }
 
   function sendGatewayPayload(payload: unknown): void {
@@ -273,19 +328,21 @@ export function createDiscordBotAdapter(
 
   return {
     async connect(input) {
+      isShuttingDown = false;
       onMessage = input.onMessage;
-      socket = createWebSocket(gatewayUrl);
-      attachSocketListeners(socket);
+      openGatewaySocket(gatewayUrl);
       logger.info("Discord bot adapter connected to gateway.");
     },
 
     close() {
-      if (heartbeatInterval !== undefined) {
-        cancelHeartbeat(heartbeatInterval);
-        heartbeatInterval = undefined;
-      }
+      isShuttingDown = true;
+      stopHeartbeat();
 
-      socket?.close(1000, "Intentive relay shutdown");
+      const closingSocket = socket;
+      if (closingSocket) {
+        ignoredCloseSockets.add(closingSocket);
+        closingSocket.close(1000, "Intentive relay shutdown");
+      }
       socket = null;
       shouldResumeNextConnection = false;
     },

@@ -266,6 +266,145 @@ test("Discord bot adapter resumes when the gateway requests reconnect", async (t
   });
 });
 
+test("Discord bot adapter reconnects after handler errors without rethrowing", async (t) => {
+  const sockets = [];
+  const adapter = createDiscordBotAdapter(
+    {
+      token: "test-bot-token",
+      selfUserId: "discord-bot-self",
+      gatewayUrl: "wss://discord.test/gateway",
+      apiBaseUrl: "https://discord.test/api/v10"
+    },
+    {
+      createWebSocket(url) {
+        const socket = new FakeGatewaySocket(url);
+        sockets.push(socket);
+        return socket;
+      },
+      fetch: async () => {
+        throw new Error("REST should not be called in handler error test");
+      },
+      logger: silentLogger
+    }
+  );
+
+  t.after(() => adapter.close());
+
+  await adapter.connect({
+    async onMessage() {
+      throw new Error("relay handler failed");
+    }
+  });
+
+  const firstSocket = sockets[0];
+  await firstSocket.emitGatewayMessage({
+    op: 10,
+    d: { heartbeat_interval: 45_000 }
+  });
+  await firstSocket.emitGatewayMessage({
+    op: 0,
+    t: "READY",
+    s: 5,
+    d: {
+      session_id: "discord-session-handler-error",
+      resume_gateway_url: "wss://discord.test/resume",
+      user: { id: "discord-bot-self" }
+    }
+  });
+  await firstSocket.emitGatewayMessage({
+    op: 0,
+    t: "MESSAGE_CREATE",
+    s: 6,
+    d: {
+      id: "discord-message-handler-error",
+      channel_id: "discord-channel-private-alex",
+      author: { id: "discord-user-local-alex" },
+      content: "This should not crash the gateway loop.",
+      timestamp: "2026-04-16T00:11:00.000Z"
+    }
+  });
+
+  assert.equal(firstSocket.closed, true);
+  assert.equal(sockets.length, 2);
+
+  const secondSocket = sockets[1];
+  assert.equal(secondSocket.url, "wss://discord.test/resume");
+  await secondSocket.emitGatewayMessage({
+    op: 10,
+    d: { heartbeat_interval: 45_000 }
+  });
+  assert.deepEqual(secondSocket.sentMessages[0], {
+    op: 6,
+    d: {
+      token: "test-bot-token",
+      session_id: "discord-session-handler-error",
+      seq: 6
+    }
+  });
+});
+
+test("Discord bot adapter reconnects after unexpected socket close", async (t) => {
+  const sockets = [];
+  const adapter = createDiscordBotAdapter(
+    {
+      token: "test-bot-token",
+      selfUserId: "discord-bot-self",
+      gatewayUrl: "wss://discord.test/gateway",
+      apiBaseUrl: "https://discord.test/api/v10"
+    },
+    {
+      createWebSocket(url) {
+        const socket = new FakeGatewaySocket(url);
+        sockets.push(socket);
+        return socket;
+      },
+      fetch: async () => {
+        throw new Error("REST should not be called in close reconnect test");
+      },
+      logger: silentLogger
+    }
+  );
+
+  t.after(() => adapter.close());
+
+  await adapter.connect({
+    onMessage() {}
+  });
+
+  const firstSocket = sockets[0];
+  await firstSocket.emitGatewayMessage({
+    op: 10,
+    d: { heartbeat_interval: 45_000 }
+  });
+  await firstSocket.emitGatewayMessage({
+    op: 0,
+    t: "READY",
+    s: 3,
+    d: {
+      session_id: "discord-session-close-reconnect",
+      resume_gateway_url: "wss://discord.test/resume",
+      user: { id: "discord-bot-self" }
+    }
+  });
+  await firstSocket.emitClose();
+
+  assert.equal(sockets.length, 2);
+  const secondSocket = sockets[1];
+  assert.equal(secondSocket.url, "wss://discord.test/resume");
+  await secondSocket.emitGatewayMessage({
+    op: 10,
+    d: { heartbeat_interval: 45_000 }
+  });
+  assert.deepEqual(secondSocket.sentMessages[0], {
+    op: 6,
+    d: {
+      token: "test-bot-token",
+      session_id: "discord-session-close-reconnect",
+      seq: 3
+    }
+  });
+});
+
 class FakeGatewaySocket {
   constructor(url) {
     this.url = url;
@@ -285,6 +424,13 @@ class FakeGatewaySocket {
 
   close() {
     this.closed = true;
+  }
+
+  async emitClose() {
+    this.closed = true;
+    for (const listener of this.listeners.get("close") ?? []) {
+      await listener({});
+    }
   }
 
   async emitGatewayMessage(payload) {

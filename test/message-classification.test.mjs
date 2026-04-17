@@ -260,6 +260,41 @@ test("mapped user messages persist and post mock agent replies", async () => {
   });
 });
 
+test("mapped user replies do not require a Discord outbound adapter", async () => {
+  await withDatabase(async (database) => {
+    const openClaw = {
+      async sendUserMessage() {
+        return {
+          status: "ok",
+          traceId: "trace-persist-only-1",
+          reply: {
+            content: "Persist the runtime metadata without posting.",
+            runtimeMessageId: "runtime-message-persist-only"
+          }
+        };
+      }
+    };
+
+    const result = await processDiscordMessagePayload(
+      {
+        id: "discord-message-route-user-persist-only-1",
+        channelId: "discord-channel-private-alex",
+        author: { id: "discord-user-local-alex" },
+        content: "Route this without a Discord sender.",
+        timestamp: "2026-04-16T00:02:57.000Z"
+      },
+      { database, openClaw }
+    );
+
+    const stored = selectStoredMessage(database, "discord-message-route-user-persist-only-1");
+
+    assert.equal(result.agentReply, null);
+    assert.equal(stored.openclaw_status, "ok");
+    assert.equal(stored.openclaw_trace_id, "trace-persist-only-1");
+    assert.equal(countRows(database, "messages"), 1);
+  });
+});
+
 test("duplicate Discord message IDs do not repeat routing side effects", async () => {
   await withDatabase(async (database) => {
     let openClawCalls = 0;

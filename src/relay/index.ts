@@ -1,12 +1,22 @@
 import type { RelayConfig } from "../config/index.js";
 import type { RelayStore, StoredMessage } from "../db/index.js";
 import type { NormalizedDiscordEvent } from "../discord/index.js";
-import type { OpenClawGatewayReply } from "../openclaw/index.js";
+
+export type RelayRuntimeReply = {
+  status: "ok" | "not_configured" | "failed";
+  message?: string;
+  reply?: {
+    content: string;
+    runtimeMessageId?: string;
+  };
+  traceId?: string;
+  providerResponseId?: string;
+};
 
 export type RelayResult = {
   accepted: boolean;
   storedMessage: StoredMessage;
-  openClaw: OpenClawGatewayReply;
+  openClaw: RelayRuntimeReply;
 };
 
 export type IntentiveRelayDependencies = {
@@ -18,7 +28,7 @@ export type IntentiveRelayDependencies = {
       sessionKey: string;
       message: string;
       metadata: Record<string, string>;
-    }): Promise<OpenClawGatewayReply>;
+    }): Promise<RelayRuntimeReply>;
   };
 };
 

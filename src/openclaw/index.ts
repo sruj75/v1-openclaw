@@ -136,7 +136,14 @@ export function createOpenClawGatewayClient(
   const chatTerminalWaiters: ChatTerminalWaiter[] = [];
 
   async function sendUserMessage(request: OpenClawGatewayRequest): Promise<OpenClawGatewayReply> {
-    await ensureConnected();
+    try {
+      await ensureConnected();
+    } catch (error) {
+      return {
+        status: "failed",
+        message: error instanceof Error ? error.message : "OpenClaw gateway connect failed"
+      };
+    }
 
     const sessionKey = requireNonEmptyString(request.sessionKey, "OpenClaw session key");
     const message = requireNonEmptyString(request.message, "OpenClaw chat message");
@@ -435,8 +442,22 @@ export function createOpenClawGatewayClient(
 
   function waitForConnectChallenge(): Promise<string> {
     return new Promise((resolve, reject) => {
-      resolveChallenge = resolve;
-      rejectChallenge = reject;
+      const timeoutId = setTimeout(() => {
+        challengeNonce = null;
+        resolveChallenge = null;
+        rejectChallenge = null;
+        socket?.close(1002, "OpenClaw connect.challenge timed out");
+        reject(new Error(`OpenClaw connect.challenge timed out after ${requestTimeoutMs}ms`));
+      }, requestTimeoutMs);
+
+      resolveChallenge = (nonce) => {
+        clearTimeout(timeoutId);
+        resolve(nonce);
+      };
+      rejectChallenge = (error) => {
+        clearTimeout(timeoutId);
+        reject(error);
+      };
     });
   }
 

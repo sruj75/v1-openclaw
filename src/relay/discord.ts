@@ -2,19 +2,47 @@ import {
   findPersistedMessageByDiscordId,
   persistAgentReplyMessage,
   persistClassifiedMessage,
-  type PersistedMessage
+  type PersistedMessage,
+  type RuntimePersistenceMetadata
 } from "../db/messages.js";
 import { resolveChannelRouting } from "../db/routing.js";
 import { getOrCreateConversationSession, type ConversationSession } from "../db/sessions.js";
 import type { SqliteDatabase } from "../db/sqlite.js";
 import { type DiscordOutboundAdapter, normalizeDiscordMessagePayload } from "../discord/index.js";
 import type { NormalizedDiscordEvent } from "../discord/index.js";
-import type { OpenClawGatewayClient, OpenClawGatewayReply } from "../openclaw/index.js";
 import { classifyDiscordMessage, type ClassifiedDiscordMessage } from "./classification.js";
+
+export type AgentRuntimeReply = {
+  status: "ok" | "not_configured" | "failed";
+  message?: string;
+  reply?: {
+    content: string;
+    runtimeMessageId?: string;
+  };
+  traceId?: string;
+  providerResponseId?: string;
+};
+
+export type AgentRuntimeRequest = {
+  agentId: string;
+  sessionKey: string;
+  message: string;
+  metadata: {
+    discordMessageId: string;
+    discordChannelId: string;
+    userId: string;
+    expertId: string;
+    assignmentId: string;
+  };
+};
+
+export type AgentRuntimeClient = {
+  sendUserMessage(request: AgentRuntimeRequest): Promise<AgentRuntimeReply>;
+};
 
 export type ProcessDiscordMessageDependencies = {
   database: SqliteDatabase;
-  openClaw: OpenClawGatewayClient;
+  openClaw: AgentRuntimeClient;
   discord?: DiscordOutboundAdapter;
   discordSelfUserId?: string;
 };
@@ -24,7 +52,7 @@ export type ProcessedDiscordMessage = {
   persisted: PersistedMessage;
   agentReply: PersistedMessage | null;
   session: ConversationSession | null;
-  openClaw: OpenClawGatewayReply | null;
+  openClaw: AgentRuntimeReply | null;
   duplicate: boolean;
 };
 
@@ -83,10 +111,10 @@ export async function processNormalizedDiscordEvent(
   const updatedPersisted = openClaw
     ? persistClassifiedMessage(dependencies.database, classified, {
         session,
-        openClaw
+        runtime: toRuntimePersistenceMetadata(openClaw)
       })
     : persisted;
-  const agentReply = openClaw?.reply && routing && session
+  const agentReply = openClaw?.reply && routing && session && dependencies.discord
     ? await postAndPersistAgentReply({
         database: dependencies.database,
         discord: dependencies.discord,
@@ -110,9 +138,9 @@ export async function processNormalizedDiscordEvent(
 }
 
 async function sendToOpenClawWithFailureCapture(
-  openClaw: OpenClawGatewayClient,
-  request: Parameters<OpenClawGatewayClient["sendUserMessage"]>[0]
-): Promise<OpenClawGatewayReply> {
+  openClaw: AgentRuntimeClient,
+  request: AgentRuntimeRequest
+): Promise<AgentRuntimeReply> {
   try {
     const reply = await openClaw.sendUserMessage(request);
     if (reply.status === "failed") {
@@ -131,7 +159,7 @@ async function sendToOpenClawWithFailureCapture(
   }
 }
 
-function withFallbackReply(reply: OpenClawGatewayReply): OpenClawGatewayReply {
+function withFallbackReply(reply: AgentRuntimeReply): AgentRuntimeReply {
   if (reply.reply?.content) {
     return reply;
   }
@@ -146,18 +174,14 @@ function withFallbackReply(reply: OpenClawGatewayReply): OpenClawGatewayReply {
 
 async function postAndPersistAgentReply(input: {
   database: SqliteDatabase;
-  discord?: DiscordOutboundAdapter;
+  discord: DiscordOutboundAdapter;
   routingAgentId: string;
   channelId: string;
   originatingDiscordMessageId: string;
   originatingMessageId: string;
   session: ConversationSession;
-  openClaw: OpenClawGatewayReply;
+  openClaw: AgentRuntimeReply;
 }): Promise<PersistedMessage> {
-  if (!input.discord) {
-    throw new Error("Discord outbound adapter is required to post OpenClaw replies");
-  }
-
   const replyContent = input.openClaw.reply?.content;
   if (!replyContent) {
     throw new Error("OpenClaw reply content is required before posting to Discord");
@@ -180,6 +204,17 @@ async function postAndPersistAgentReply(input: {
     session: input.session,
     originatingMessageId: input.originatingMessageId,
     content: replyContent,
-    openClaw: input.openClaw
+    runtime: toRuntimePersistenceMetadata(input.openClaw)
   });
+}
+
+function toRuntimePersistenceMetadata(reply: AgentRuntimeReply): RuntimePersistenceMetadata {
+  return {
+    status: reply.status,
+    message: reply.message,
+    replyContent: reply.reply?.content,
+    runtimeMessageId: reply.reply?.runtimeMessageId,
+    traceId: reply.traceId,
+    providerResponseId: reply.providerResponseId
+  };
 }

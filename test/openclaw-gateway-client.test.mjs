@@ -142,6 +142,34 @@ test("OpenClaw client waits for connect.challenge and signs device connect", asy
   client.close();
 });
 
+test("OpenClaw client times out when connect.challenge is not delivered", async () => {
+  const identity = await createDeviceIdentity();
+  const sockets = [];
+  const client = createOpenClawGatewayClient(
+    {
+      gatewayUrl: "wss://openclaw.test/gateway",
+      deviceIdentityJwk: identity.privateJwk,
+      requestTimeoutMs: 25
+    },
+    {
+      createWebSocket(url) {
+        const socket = new FakeOpenClawSocket(url);
+        sockets.push(socket);
+        return socket;
+      },
+      now: () => signedAtMs
+    }
+  );
+
+  const response = await client.sendUserMessage(openClawRequest());
+
+  assert.equal(response.status, "failed");
+  assert.match(response.message, /connect\.challenge timed out/);
+  assert.equal(sockets[0].closed, true);
+
+  client.close();
+});
+
 test("OpenClaw client falls back to chat.history after terminal event without assistant text", async () => {
   const identity = await createDeviceIdentity();
   const sockets = [];

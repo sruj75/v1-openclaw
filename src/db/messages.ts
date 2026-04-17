@@ -1,5 +1,4 @@
 import type { ClassifiedDiscordMessage } from "../relay/classification.js";
-import type { OpenClawGatewayReply } from "../openclaw/index.js";
 import type { ConversationSession } from "./sessions.js";
 import type { SqliteDatabase } from "./sqlite.js";
 
@@ -12,7 +11,7 @@ export type PersistedMessage = {
 
 export type MessagePersistenceOptions = {
   session?: ConversationSession | null;
-  openClaw?: OpenClawGatewayReply | null;
+  runtime?: RuntimePersistenceMetadata | null;
 };
 
 export type AgentReplyMessageInput = {
@@ -22,7 +21,16 @@ export type AgentReplyMessageInput = {
   session: ConversationSession;
   originatingMessageId: string;
   content: string;
-  openClaw: OpenClawGatewayReply;
+  runtime: RuntimePersistenceMetadata;
+};
+
+export type RuntimePersistenceMetadata = {
+  status: string;
+  message?: string;
+  replyContent?: string;
+  runtimeMessageId?: string;
+  traceId?: string;
+  providerResponseId?: string;
 };
 
 export function persistClassifiedMessage(
@@ -89,9 +97,9 @@ export function persistClassifiedMessage(
         raw: message.event.rawEvent
       }),
       routingMetadata ? JSON.stringify(routingMetadata) : null,
-      options.openClaw?.status ?? null,
-      options.openClaw?.traceId ?? null,
-      options.openClaw?.providerResponseId ?? null
+      options.runtime?.status ?? null,
+      options.runtime?.traceId ?? null,
+      options.runtime?.providerResponseId ?? null
     );
 
   return {
@@ -186,16 +194,19 @@ export function persistAgentReplyMessage(
       input.originatingMessageId,
       input.content,
       JSON.stringify({
-        openClawReply: input.openClaw.reply ?? null
+        runtimeReply: {
+          content: input.runtime.replyContent ?? null,
+          runtimeMessageId: input.runtime.runtimeMessageId ?? null
+        }
       }),
       JSON.stringify({
         sessionId: input.session.id,
         openClawSessionKey: input.session.openClawSessionKey,
         originatingMessageId: input.originatingMessageId
       }),
-      input.openClaw.status,
-      input.openClaw.traceId ?? null,
-      input.openClaw.providerResponseId ?? input.openClaw.reply?.runtimeMessageId ?? null
+      input.runtime.status,
+      input.runtime.traceId ?? null,
+      input.runtime.providerResponseId ?? input.runtime.runtimeMessageId ?? null
     );
 
   return {
@@ -210,7 +221,7 @@ function buildRoutingMetadata(
   message: ClassifiedDiscordMessage,
   options: MessagePersistenceOptions
 ): Record<string, unknown> | null {
-  if (!message.routing && !options.session && !options.openClaw) {
+  if (!message.routing && !options.session && !options.runtime) {
     return null;
   }
 
@@ -223,6 +234,6 @@ function buildRoutingMetadata(
     discordChannelId: message.routing?.discordChannelId ?? message.event.channelId,
     sessionId: options.session?.id ?? null,
     openClawSessionKey: options.session?.openClawSessionKey ?? null,
-    openClawMessage: options.openClaw?.message ?? null
+    openClawMessage: options.runtime?.message ?? null
   };
 }
