@@ -28,13 +28,24 @@ export type AgentRuntimeRequest = {
   agentId: string;
   sessionKey: string;
   message: string;
-  metadata: {
-    discordMessageId: string;
-    discordChannelId: string;
-    userId: string;
-    expertId: string;
-    assignmentId: string;
-  };
+  metadata: AgentRuntimeRequestMetadata;
+};
+
+export type AgentRuntimeRequestMetadata = {
+  discordMessageId: string;
+  discordChannelId: string;
+  userId: string;
+  expertId: string;
+  assignmentId: string;
+  environment?: string | null;
+  context_version?: string | null;
+  context_update_mode?: string | null;
+  session_id?: string | null;
+  user_id?: string | null;
+  expert_id?: string | null;
+  agent_id?: string | null;
+  assignment_id?: string | null;
+  discord_channel_id?: string | null;
 };
 
 export type AgentRuntimeClient = {
@@ -112,7 +123,16 @@ export async function processNormalizedDiscordEvent(
           discordChannelId: event.channelId,
           userId: routing.user.id,
           expertId: routing.expert.id,
-          assignmentId: routing.assignmentId
+          assignmentId: routing.assignmentId,
+          environment: dependencies.environment ?? process.env.NODE_ENV ?? "test",
+          context_version: contextMetadata?.contextVersion ?? null,
+          context_update_mode: contextMetadata?.contextUpdateMode ?? null,
+          session_id: session.id,
+          user_id: routing.user.id,
+          expert_id: routing.expert.id,
+          agent_id: routing.agent.id,
+          assignment_id: routing.assignmentId,
+          discord_channel_id: event.channelId
         }
       })
     : null;

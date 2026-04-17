@@ -194,7 +194,16 @@ test("mapped user messages create a session and call the OpenClaw gateway client
           discordChannelId: "discord-channel-private-alex",
           userId: "user_local_alex",
           expertId: "expert_local_river",
-          assignmentId: "assignment_local_alex_private_channel"
+          assignmentId: "assignment_local_alex_private_channel",
+          session_id: "session_discord-channel-private-alex_openclaw-agent-local-alex",
+          user_id: "user_local_alex",
+          expert_id: "expert_local_river",
+          agent_id: "agent_local_alex",
+          assignment_id: "assignment_local_alex_private_channel",
+          discord_channel_id: "discord-channel-private-alex",
+          environment: "test",
+          context_version: "alex-week-2026-04-17",
+          context_update_mode: "manual_ssh"
         }
       }
     ]);
