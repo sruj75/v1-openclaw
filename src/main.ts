@@ -58,7 +58,8 @@ async function runDiscordBotEntrypoint() {
         database,
         openClaw,
         discord,
-        discordSelfUserId: discord.getSelfUserId()
+        discordSelfUserId: discord.getSelfUserId(),
+        environment: config.environment
       });
     }
   });

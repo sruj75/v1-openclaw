@@ -5,6 +5,7 @@ import {
   type PersistedMessage,
   type RuntimePersistenceMetadata
 } from "../db/messages.js";
+import { resolveContextMetadata } from "../db/context.js";
 import { resolveChannelRouting } from "../db/routing.js";
 import { getOrCreateConversationSession, type ConversationSession } from "../db/sessions.js";
 import type { SqliteDatabase } from "../db/sqlite.js";
@@ -45,6 +46,7 @@ export type ProcessDiscordMessageDependencies = {
   openClaw: AgentRuntimeClient;
   discord?: DiscordOutboundAdapter;
   discordSelfUserId?: string;
+  environment?: string;
 };
 
 export type ProcessedDiscordMessage = {
@@ -91,8 +93,14 @@ export async function processNormalizedDiscordEvent(
   const session = classified.shouldForwardToOpenClaw && routing
     ? getOrCreateConversationSession(dependencies.database, routing)
     : null;
+  const contextMetadata = classified.shouldForwardToOpenClaw && routing
+    ? resolveContextMetadata(dependencies.database, routing.agent.id)
+    : null;
+  const environment = dependencies.environment ?? process.env.NODE_ENV ?? "test";
   const persisted = persistClassifiedMessage(dependencies.database, classified, {
-    session
+    session,
+    contextMetadata,
+    environment
   });
   const openClaw = classified.shouldForwardToOpenClaw && routing && session
     ? await sendToOpenClawWithFailureCapture(dependencies.openClaw, {
@@ -111,7 +119,9 @@ export async function processNormalizedDiscordEvent(
   const updatedPersisted = openClaw
     ? persistClassifiedMessage(dependencies.database, classified, {
         session,
-        runtime: toRuntimePersistenceMetadata(openClaw)
+        runtime: toRuntimePersistenceMetadata(openClaw),
+        contextMetadata,
+        environment
       })
     : persisted;
   const agentReply = openClaw?.reply && routing && session && dependencies.discord

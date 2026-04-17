@@ -104,6 +104,25 @@ export function getContextMetadata(
   };
 }
 
+export function resolveContextMetadata(
+  database: SqliteDatabase,
+  agentId: string,
+  targetType: "agent" | "assignment" = "agent"
+): ContextMetadataRecord | null {
+  try {
+    return getContextMetadata(database, agentId, targetType);
+  } catch (error) {
+    if (
+      error instanceof ContextMetadataError &&
+      error.message === `Agent ${agentId} does not have recorded context metadata.`
+    ) {
+      return null;
+    }
+
+    throw error;
+  }
+}
+
 type ContextMetadataRow = {
   id: string;
   context_version: string | null;
