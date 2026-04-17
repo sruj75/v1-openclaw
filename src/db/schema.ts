@@ -22,6 +22,10 @@ CREATE TABLE IF NOT EXISTS agents (
   openclaw_agent_id TEXT NOT NULL UNIQUE,
   workspace_path TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'active',
+  context_version TEXT,
+  context_update_mode TEXT,
+  context_updated_at TEXT,
+  context_updated_by TEXT,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
