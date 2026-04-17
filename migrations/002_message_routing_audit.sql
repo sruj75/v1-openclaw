@@ -1,0 +1,1 @@
+-- Columns are included in 001_phase1_persistence.sql for fresh Phase 1 databases.
