@@ -20,7 +20,7 @@ declare const process: {
   exitCode?: number;
 };
 
-export async function runSyntheticEntrypoint() {
+async function runSyntheticEntrypoint() {
   const config = loadConfig(process.env);
   const openClaw = createOpenClawGatewayFromEnv(process.env);
   const relay = createIntentiveRelay({
@@ -43,7 +43,7 @@ export async function runSyntheticEntrypoint() {
   }
 }
 
-export async function runDiscordBotEntrypoint() {
+async function runDiscordBotEntrypoint() {
   const config = loadConfig(process.env);
   await mkdir(dirname(config.databasePath), { recursive: true });
   const database = openSqliteDatabase(config.databasePath);

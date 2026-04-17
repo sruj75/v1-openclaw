@@ -27,11 +27,27 @@ export type OpenClawGatewayClient = {
   close?(): void;
 };
 
+export type OpenClawGatewayMessageData = string | ArrayBuffer;
+
 export type OpenClawGatewaySocket = {
-  addEventListener(type: string, listener: (event: { data?: unknown }) => void | Promise<void>): void;
+  addEventListener(
+    type: string,
+    listener: (event: { data?: OpenClawGatewayMessageData }) => void | Promise<void>
+  ): void;
   send(data: string): void;
   close(code?: number, reason?: string): void;
 };
+
+export const OPENCLAW_GATEWAY_CLIENT_DEFAULTS = {
+  clientId: "cli",
+  clientMode: "operator",
+  clientVersion: "0.1.0",
+  clientPlatform: "node",
+  deviceFamily: "server",
+  locale: "en-US",
+  userAgent: "v1-openclaw/0.1.0",
+  requestTimeoutMs: 30_000
+} as const;
 
 export type OpenClawGatewayClientConfig = {
   gatewayUrl: string;
@@ -83,14 +99,7 @@ type AssistantHistoryCursor = {
 };
 
 const PROTOCOL_VERSION = 3;
-const DEFAULT_CLIENT_ID = "cli";
-const DEFAULT_CLIENT_MODE = "operator";
-const DEFAULT_CLIENT_VERSION = "0.1.0";
-const DEFAULT_CLIENT_PLATFORM = "node";
-const DEFAULT_DEVICE_FAMILY = "server";
-const DEFAULT_LOCALE = "en-US";
-const DEFAULT_USER_AGENT = "v1-openclaw/0.1.0";
-const DEFAULT_REQUEST_TIMEOUT_MS = 30_000;
+const MAX_BUFFERED_CHAT_TERMINAL_EVENTS = 256;
 const CONNECT_ROLE = "operator";
 const CONNECT_SCOPES = ["operator.read", "operator.write"] as const;
 
@@ -112,17 +121,25 @@ export function createOpenClawGatewayClient(
   const gatewayUrl = requireNonEmptyString(config.gatewayUrl, "OpenClaw gateway URL");
   const createWebSocket = dependencies.createWebSocket ?? defaultCreateWebSocket;
   const now = dependencies.now ?? (() => Date.now());
-  const requestTimeoutMs = config.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
-  const clientId = normalizeMetadata(config.clientId ?? DEFAULT_CLIENT_ID);
-  const clientMode = normalizeMetadata(config.clientMode ?? DEFAULT_CLIENT_MODE);
-  const clientPlatform = normalizeMetadata(config.clientPlatform ?? DEFAULT_CLIENT_PLATFORM);
-  const deviceFamily = normalizeMetadata(config.deviceFamily ?? DEFAULT_DEVICE_FAMILY);
+  const requestTimeoutMs = config.requestTimeoutMs ?? OPENCLAW_GATEWAY_CLIENT_DEFAULTS.requestTimeoutMs;
+  const clientId = normalizeMetadata(config.clientId ?? OPENCLAW_GATEWAY_CLIENT_DEFAULTS.clientId);
+  const clientMode = normalizeMetadata(config.clientMode ?? OPENCLAW_GATEWAY_CLIENT_DEFAULTS.clientMode);
+  const clientPlatform = normalizeMetadata(
+    config.clientPlatform ?? OPENCLAW_GATEWAY_CLIENT_DEFAULTS.clientPlatform
+  );
+  const deviceFamily = normalizeMetadata(config.deviceFamily ?? OPENCLAW_GATEWAY_CLIENT_DEFAULTS.deviceFamily);
   const clientVersion = requireNonEmptyString(
-    config.clientVersion ?? DEFAULT_CLIENT_VERSION,
+    config.clientVersion ?? OPENCLAW_GATEWAY_CLIENT_DEFAULTS.clientVersion,
     "OpenClaw client version"
   );
-  const locale = requireNonEmptyString(config.locale ?? DEFAULT_LOCALE, "OpenClaw locale");
-  const userAgent = requireNonEmptyString(config.userAgent ?? DEFAULT_USER_AGENT, "OpenClaw user agent");
+  const locale = requireNonEmptyString(
+    config.locale ?? OPENCLAW_GATEWAY_CLIENT_DEFAULTS.locale,
+    "OpenClaw locale"
+  );
+  const userAgent = requireNonEmptyString(
+    config.userAgent ?? OPENCLAW_GATEWAY_CLIENT_DEFAULTS.userAgent,
+    "OpenClaw user agent"
+  );
 
   let socket: OpenClawGatewaySocket | null = null;
   let connectPromise: Promise<void> | null = null;
@@ -369,7 +386,7 @@ export function createOpenClawGatewayClient(
     });
   }
 
-  async function handleSocketMessage(data: unknown): Promise<void> {
+  async function handleSocketMessage(data: OpenClawGatewayMessageData | undefined): Promise<void> {
     const frame = parseJsonFrame(data);
     if (handleResponseFrame(frame)) {
       return;
@@ -407,7 +424,7 @@ export function createOpenClawGatewayClient(
         return;
       }
 
-      bufferedChatTerminalEvents.push(terminalEvent);
+      bufferChatTerminalEvent(terminalEvent);
     }
   }
 
@@ -494,6 +511,14 @@ export function createOpenClawGatewayClient(
 
     const [event] = bufferedChatTerminalEvents.splice(index, 1);
     return event;
+  }
+
+  function bufferChatTerminalEvent(event: ChatTerminalEvent): void {
+    bufferedChatTerminalEvents.push(event);
+    const overflowCount = bufferedChatTerminalEvents.length - MAX_BUFFERED_CHAT_TERMINAL_EVENTS;
+    if (overflowCount > 0) {
+      bufferedChatTerminalEvents.splice(0, overflowCount);
+    }
   }
 
   async function readAssistantHistoryCursor(sessionKey: string): Promise<AssistantHistoryCursor> {
@@ -774,7 +799,7 @@ function readFramePayload(frame: Record<string, unknown>): unknown {
   return frame.payload ?? frame.data ?? frame.d ?? frame.params ?? frame;
 }
 
-function parseJsonFrame(data: unknown): Record<string, unknown> {
+function parseJsonFrame(data: OpenClawGatewayMessageData | undefined): Record<string, unknown> {
   const json = typeof data === "string" ? data : decodeFrameData(data);
   const parsed = JSON.parse(json) as unknown;
   if (!isRecord(parsed)) {
@@ -784,7 +809,7 @@ function parseJsonFrame(data: unknown): Record<string, unknown> {
   return parsed;
 }
 
-function decodeFrameData(data: unknown): string {
+function decodeFrameData(data: OpenClawGatewayMessageData | undefined): string {
   if (data instanceof ArrayBuffer) {
     return new TextDecoder().decode(data);
   }

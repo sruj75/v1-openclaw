@@ -1,5 +1,8 @@
 import type { DiscordBotAdapterConfig } from "../discord/index.js";
-import type { OpenClawGatewayClientConfig } from "../openclaw/index.js";
+import {
+  OPENCLAW_GATEWAY_CLIENT_DEFAULTS,
+  type OpenClawGatewayClientConfig
+} from "../openclaw/index.js";
 
 export type RelayConfig = {
   environment: string;
@@ -44,13 +47,21 @@ export function loadOpenClawGatewayConfig(
     gatewayUrl,
     authToken: readOptionalString(env.OPENCLAW_GATEWAY_TOKEN) ?? readOptionalString(env.OPENCLAW_AUTH_TOKEN),
     deviceIdentityJwk: readDeviceIdentityJwk(env.OPENCLAW_DEVICE_IDENTITY_JWK),
-    clientVersion: readOptionalString(env.OPENCLAW_CLIENT_VERSION) ?? "0.1.0",
-    clientPlatform: readOptionalString(env.OPENCLAW_CLIENT_PLATFORM) ?? "node",
-    clientId: readOptionalString(env.OPENCLAW_CLIENT_ID) ?? "cli",
-    clientMode: readOptionalString(env.OPENCLAW_CLIENT_MODE) ?? "operator",
-    deviceFamily: readOptionalString(env.OPENCLAW_DEVICE_FAMILY) ?? "server",
-    locale: readOptionalString(env.OPENCLAW_LOCALE) ?? "en-US",
-    userAgent: readOptionalString(env.OPENCLAW_USER_AGENT) ?? "v1-openclaw/0.1.0",
+    clientVersion:
+      readOptionalString(env.OPENCLAW_CLIENT_VERSION) ??
+      OPENCLAW_GATEWAY_CLIENT_DEFAULTS.clientVersion,
+    clientPlatform:
+      readOptionalString(env.OPENCLAW_CLIENT_PLATFORM) ??
+      OPENCLAW_GATEWAY_CLIENT_DEFAULTS.clientPlatform,
+    clientId: readOptionalString(env.OPENCLAW_CLIENT_ID) ?? OPENCLAW_GATEWAY_CLIENT_DEFAULTS.clientId,
+    clientMode:
+      readOptionalString(env.OPENCLAW_CLIENT_MODE) ?? OPENCLAW_GATEWAY_CLIENT_DEFAULTS.clientMode,
+    deviceFamily:
+      readOptionalString(env.OPENCLAW_DEVICE_FAMILY) ??
+      OPENCLAW_GATEWAY_CLIENT_DEFAULTS.deviceFamily,
+    locale: readOptionalString(env.OPENCLAW_LOCALE) ?? OPENCLAW_GATEWAY_CLIENT_DEFAULTS.locale,
+    userAgent:
+      readOptionalString(env.OPENCLAW_USER_AGENT) ?? OPENCLAW_GATEWAY_CLIENT_DEFAULTS.userAgent,
     requestTimeoutMs: readOptionalInteger(
       env.OPENCLAW_REQUEST_TIMEOUT_MS,
       "OPENCLAW_REQUEST_TIMEOUT_MS"
