@@ -86,6 +86,15 @@ npm test
 
 The `Discord bot adapter normalizes private messages and posts relay replies to the same channel` test drives a fake Discord gateway and fake Discord REST API. It proves inbound `MESSAGE_CREATE` normalization, self-message loop prevention, relay processing, and outbound reply posting without live credentials.
 
+Live Phase 1 private-channel smoke:
+
+```sh
+npm run smoke:phase1
+```
+
+See `docs/phase1-private-channel-smoke.md` for required environment variables,
+verification queries, and known Phase 1 limitations.
+
 ## Module Homes
 
 - `src/config`: environment and service configuration
