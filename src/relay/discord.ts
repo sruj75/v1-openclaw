@@ -65,7 +65,7 @@ export async function processNormalizedDiscordEvent(
     : null;
   const openClaw = classified.shouldForwardToOpenClaw && routing && session
     ? await sendToOpenClawWithFailureCapture(dependencies.openClaw, {
-        agentId: routing.agent.id,
+        agentId: routing.agent.openClawAgentId,
         sessionKey: session.openClawSessionKey,
         message: event.content,
         metadata: {

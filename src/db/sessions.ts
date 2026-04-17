@@ -21,8 +21,8 @@ export function getOrCreateConversationSession(
   database: SqliteDatabase,
   routing: ChannelRoutingAssignment
 ): ConversationSession {
-  const sessionId = stableSessionId(routing.discordChannelId, routing.agent.id);
-  const sessionKey = `discord:${routing.discordChannelId}:agent:${routing.agent.id}`;
+  const sessionId = stableSessionId(routing.discordChannelId, routing.agent.openClawAgentId);
+  const sessionKey = `discord:${routing.discordChannelId}:agent:${routing.agent.openClawAgentId}`;
 
   database
     .prepare(

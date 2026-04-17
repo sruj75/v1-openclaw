@@ -174,11 +174,14 @@ test("mapped user messages create a session and call the OpenClaw gateway client
     );
 
     assert.equal(result.classified.messageType, "user_message");
-    assert.equal(result.session?.openClawSessionKey, "discord:discord-channel-private-alex:agent:agent_local_alex");
+    assert.equal(
+      result.session?.openClawSessionKey,
+      "discord:discord-channel-private-alex:agent:openclaw-agent-local-alex"
+    );
     assert.deepEqual(calls, [
       {
-        agentId: "agent_local_alex",
-        sessionKey: "discord:discord-channel-private-alex:agent:agent_local_alex",
+        agentId: "openclaw-agent-local-alex",
+        sessionKey: "discord:discord-channel-private-alex:agent:openclaw-agent-local-alex",
         message: "Please help me pick the first step.",
         metadata: {
           discordMessageId: "discord-message-route-user-1",
@@ -193,11 +196,14 @@ test("mapped user messages create a session and call the OpenClaw gateway client
     const stored = selectStoredMessage(database, "discord-message-route-user-1");
     const routingMetadata = JSON.parse(stored.routing_metadata_json);
 
-    assert.equal(stored.session_id, "session_discord-channel-private-alex_agent_local_alex");
+    assert.equal(stored.session_id, "session_discord-channel-private-alex_openclaw-agent-local-alex");
     assert.equal(stored.openclaw_status, "ok");
     assert.equal(stored.openclaw_trace_id, "trace-local-1");
     assert.equal(stored.openclaw_provider_response_id, "provider-response-1");
-    assert.equal(routingMetadata.openClawSessionKey, "discord:discord-channel-private-alex:agent:agent_local_alex");
+    assert.equal(
+      routingMetadata.openClawSessionKey,
+      "discord:discord-channel-private-alex:agent:openclaw-agent-local-alex"
+    );
   });
 });
 
@@ -237,7 +243,7 @@ test("mapped user messages persist and post mock agent replies", async () => {
         content: "Start with opening the document. I will stay with you for the next step.",
         metadata: {
           originatingDiscordMessageId: "discord-message-route-user-with-reply-1",
-          sessionId: "session_discord-channel-private-alex_agent_local_alex",
+          sessionId: "session_discord-channel-private-alex_openclaw-agent-local-alex",
           agentId: "agent_local_alex"
         }
       }
@@ -384,7 +390,7 @@ test("OpenClaw failures persist metadata and send a fixed fallback reply", async
         content: OPENCLAW_FAILURE_FALLBACK_REPLY,
         metadata: {
           originatingDiscordMessageId: "discord-message-openclaw-failure-1",
-          sessionId: "session_discord-channel-private-alex_agent_local_alex",
+          sessionId: "session_discord-channel-private-alex_openclaw-agent-local-alex",
           agentId: "agent_local_alex"
         }
       }

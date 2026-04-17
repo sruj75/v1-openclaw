@@ -154,6 +154,11 @@ test("Discord bot adapter normalizes private messages and posts relay replies to
 
     assert.equal(processed.length, 1);
     assert.equal(processed[0].message, "I need a tiny first step.");
+    assert.equal(processed[0].agentId, "openclaw-agent-local-alex");
+    assert.equal(
+      processed[0].sessionKey,
+      "discord:discord-channel-private-alex:agent:openclaw-agent-local-alex"
+    );
     assert.equal(restCalls.length, 1);
     assert.equal(restCalls[0].url, "https://discord.test/api/v10/channels/discord-channel-private-alex/messages");
     assert.equal(restCalls[0].init.method, "POST");
