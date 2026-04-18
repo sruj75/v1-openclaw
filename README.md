@@ -66,7 +66,7 @@ OpenClaw gateway environment:
 - `OPENCLAW_GATEWAY_URL`: OpenClaw protocol v3 WebSocket gateway URL. If unset, the relay keeps using the unconfigured fallback.
 - `OPENCLAW_DEVICE_IDENTITY_JWK`: Ed25519 OKP private JSON Web Key with `x` and `d`. Required when `OPENCLAW_GATEWAY_URL` is set so the relay can sign `connect.challenge`.
 - `OPENCLAW_GATEWAY_TOKEN`: optional shared gateway token. `OPENCLAW_AUTH_TOKEN` is also accepted as a local alias. Device identity is still required because token-only auth does not grant operator write scopes.
-- `OPENCLAW_CLIENT_ID` and `OPENCLAW_CLIENT_MODE`: default to the documented OpenClaw operator client identity, `cli` and `operator`.
+- `OPENCLAW_CLIENT_ID` and `OPENCLAW_CLIENT_MODE`: default to the OpenClaw gateway-compatible client identity, `cli` and `backend`.
 - `OPENCLAW_CLIENT_PLATFORM`: normalized into the signed metadata. Defaults to `node`.
 - `OPENCLAW_DEVICE_FAMILY`: normalized into the signed metadata. Defaults to `server`.
 - `OPENCLAW_CLIENT_VERSION`, `OPENCLAW_LOCALE`, `OPENCLAW_USER_AGENT`, `OPENCLAW_REQUEST_TIMEOUT_MS`: optional gateway metadata and timeout controls.

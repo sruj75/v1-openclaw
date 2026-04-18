@@ -142,6 +142,42 @@ test("OpenClaw client waits for connect.challenge and signs device connect", asy
   client.close();
 });
 
+test("OpenClaw client defaults to gateway-compatible backend mode", async () => {
+  const identity = await createDeviceIdentity();
+  const sockets = [];
+  const client = createOpenClawGatewayClient(
+    {
+      gatewayUrl: "wss://openclaw.test/gateway",
+      deviceIdentityJwk: identity.privateJwk,
+      requestTimeoutMs: 25
+    },
+    {
+      createWebSocket(url) {
+        const socket = new FakeOpenClawSocket(url);
+        sockets.push(socket);
+        return socket;
+      },
+      now: () => signedAtMs
+    }
+  );
+
+  const responsePromise = client.sendUserMessage(openClawRequest());
+  const socket = sockets[0];
+
+  await socket.emitGatewayMessage({
+    v: 3,
+    type: "event",
+    event: "connect.challenge",
+    payload: { nonce: "challenge-nonce-default-mode" }
+  });
+
+  await waitFor(() => socket.sentFrames.length === 1);
+  assert.equal(socket.sentFrames[0].params.client.mode, "backend");
+
+  socket.close();
+  await responsePromise;
+});
+
 test("OpenClaw client times out when connect.challenge is not delivered", async () => {
   const identity = await createDeviceIdentity();
   const sockets = [];

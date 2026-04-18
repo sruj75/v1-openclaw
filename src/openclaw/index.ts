@@ -51,7 +51,7 @@ export type OpenClawGatewaySocket = {
 
 export const OPENCLAW_GATEWAY_CLIENT_DEFAULTS = {
   clientId: "cli",
-  clientMode: "operator",
+  clientMode: "backend",
   clientVersion: "0.1.0",
   clientPlatform: "node",
   deviceFamily: "server",

@@ -17,7 +17,7 @@ then sends a `type: "req"` `connect` request with:
 - optional shared `auth.token`
 - signed top-level `device`, `locale`, and `userAgent`
 
-The supported client id and mode default to `cli` and `operator`.
+The supported client id and mode default to `cli` and `backend`.
 
 ## Device Identity
 
