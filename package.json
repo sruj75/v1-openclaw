@@ -8,6 +8,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "context:set": "npm run build && node --no-warnings dist/context.js",
     "dev": "npm run build && node --no-warnings dist/main.js --synthetic",
     "seed:local": "npm run build && node --no-warnings dist/seed.js examples/local-routing.seed.example.json data/local.sqlite",
     "smoke:phase1": "npm run build && node --no-warnings scripts/phase1-private-channel-smoke.mjs",

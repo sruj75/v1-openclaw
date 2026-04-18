@@ -5,6 +5,7 @@ import {
   type PersistedMessage,
   type RuntimePersistenceMetadata
 } from "../db/messages.js";
+import { resolveContextMetadata } from "../db/context.js";
 import { resolveChannelRouting } from "../db/routing.js";
 import { getOrCreateConversationSession, type ConversationSession } from "../db/sessions.js";
 import type { SqliteDatabase } from "../db/sqlite.js";
@@ -27,13 +28,24 @@ export type AgentRuntimeRequest = {
   agentId: string;
   sessionKey: string;
   message: string;
-  metadata: {
-    discordMessageId: string;
-    discordChannelId: string;
-    userId: string;
-    expertId: string;
-    assignmentId: string;
-  };
+  metadata: AgentRuntimeRequestMetadata;
+};
+
+export type AgentRuntimeRequestMetadata = {
+  discordMessageId: string;
+  discordChannelId: string;
+  userId: string;
+  expertId: string;
+  assignmentId: string;
+  environment?: string | null;
+  context_version?: string | null;
+  context_update_mode?: string | null;
+  session_id?: string | null;
+  user_id?: string | null;
+  expert_id?: string | null;
+  agent_id?: string | null;
+  assignment_id?: string | null;
+  discord_channel_id?: string | null;
 };
 
 export type AgentRuntimeClient = {
@@ -45,6 +57,7 @@ export type ProcessDiscordMessageDependencies = {
   openClaw: AgentRuntimeClient;
   discord?: DiscordOutboundAdapter;
   discordSelfUserId?: string;
+  environment?: string;
 };
 
 export type ProcessedDiscordMessage = {
@@ -91,8 +104,14 @@ export async function processNormalizedDiscordEvent(
   const session = classified.shouldForwardToOpenClaw && routing
     ? getOrCreateConversationSession(dependencies.database, routing)
     : null;
+  const contextMetadata = classified.shouldForwardToOpenClaw && routing
+    ? resolveContextMetadata(dependencies.database, routing.agent.id)
+    : null;
+  const environment = dependencies.environment ?? process.env.NODE_ENV ?? "test";
   const persisted = persistClassifiedMessage(dependencies.database, classified, {
-    session
+    session,
+    contextMetadata,
+    environment
   });
   const openClaw = classified.shouldForwardToOpenClaw && routing && session
     ? await sendToOpenClawWithFailureCapture(dependencies.openClaw, {
@@ -104,14 +123,25 @@ export async function processNormalizedDiscordEvent(
           discordChannelId: event.channelId,
           userId: routing.user.id,
           expertId: routing.expert.id,
-          assignmentId: routing.assignmentId
+          assignmentId: routing.assignmentId,
+          environment: dependencies.environment ?? process.env.NODE_ENV ?? "test",
+          context_version: contextMetadata?.contextVersion ?? null,
+          context_update_mode: contextMetadata?.contextUpdateMode ?? null,
+          session_id: session.id,
+          user_id: routing.user.id,
+          expert_id: routing.expert.id,
+          agent_id: routing.agent.id,
+          assignment_id: routing.assignmentId,
+          discord_channel_id: event.channelId
         }
       })
     : null;
   const updatedPersisted = openClaw
     ? persistClassifiedMessage(dependencies.database, classified, {
         session,
-        runtime: toRuntimePersistenceMetadata(openClaw)
+        runtime: toRuntimePersistenceMetadata(openClaw),
+        contextMetadata,
+        environment
       })
     : persisted;
   const agentReply = openClaw?.reply && routing && session && dependencies.discord

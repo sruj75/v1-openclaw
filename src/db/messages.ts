@@ -1,5 +1,6 @@
 import type { ClassifiedDiscordMessage } from "../relay/classification.js";
 import type { ConversationSession } from "./sessions.js";
+import type { ContextMetadataRecord } from "./context.js";
 import type { SqliteDatabase } from "./sqlite.js";
 
 export type PersistedMessage = {
@@ -12,6 +13,8 @@ export type PersistedMessage = {
 export type MessagePersistenceOptions = {
   session?: ConversationSession | null;
   runtime?: RuntimePersistenceMetadata | null;
+  contextMetadata?: ContextMetadataRecord | null;
+  environment?: string | null;
 };
 
 export type AgentReplyMessageInput = {
@@ -221,7 +224,13 @@ function buildRoutingMetadata(
   message: ClassifiedDiscordMessage,
   options: MessagePersistenceOptions
 ): Record<string, unknown> | null {
-  if (!message.routing && !options.session && !options.runtime) {
+  if (
+    !message.routing &&
+    !options.session &&
+    !options.runtime &&
+    !options.contextMetadata &&
+    !options.environment
+  ) {
     return null;
   }
 
@@ -234,6 +243,17 @@ function buildRoutingMetadata(
     discordChannelId: message.routing?.discordChannelId ?? message.event.channelId,
     sessionId: options.session?.id ?? null,
     openClawSessionKey: options.session?.openClawSessionKey ?? null,
-    openClawMessage: options.runtime?.message ?? null
+    openClawMessage: options.runtime?.message ?? null,
+    context_version: options.contextMetadata?.contextVersion ?? null,
+    context_update_mode: options.contextMetadata?.contextUpdateMode ?? null,
+    context_updated_at: options.contextMetadata?.contextUpdatedAt ?? null,
+    context_updated_by: options.contextMetadata?.contextUpdatedBy ?? null,
+    user_id: message.routing?.user.id ?? null,
+    expert_id: message.routing?.expert.id ?? null,
+    agent_id: message.routing?.agent.id ?? null,
+    discord_channel_id: message.routing?.discordChannelId ?? message.event.channelId,
+    session_id: options.session?.id ?? null,
+    assignment_id: message.routing?.assignmentId ?? null,
+    environment: options.environment ?? null
   };
 }

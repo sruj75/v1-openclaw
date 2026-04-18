@@ -6,6 +6,7 @@ import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 
 import { persistClassifiedMessage } from "../dist/db/messages.js";
+import { setContextMetadata } from "../dist/db/context.js";
 import { resolveChannelRouting } from "../dist/db/routing.js";
 import { seedRoutingAssignments } from "../dist/db/seed.js";
 import { createRecordingDiscordAdapter } from "../dist/discord/index.js";
@@ -150,6 +151,11 @@ test("relay processing persists expert messages without calling OpenClaw", async
 
 test("mapped user messages create a session and call the OpenClaw gateway client", async () => {
   await withDatabase(async (database) => {
+    setContextMetadata(database, {
+      agentId: "agent_local_alex",
+      contextVersion: "alex-week-2026-04-17",
+      updatedBy: "Srujan"
+    });
     const calls = [];
     const openClaw = {
       async sendUserMessage(request) {
@@ -188,7 +194,16 @@ test("mapped user messages create a session and call the OpenClaw gateway client
           discordChannelId: "discord-channel-private-alex",
           userId: "user_local_alex",
           expertId: "expert_local_river",
-          assignmentId: "assignment_local_alex_private_channel"
+          assignmentId: "assignment_local_alex_private_channel",
+          session_id: "session_discord-channel-private-alex_openclaw-agent-local-alex",
+          user_id: "user_local_alex",
+          expert_id: "expert_local_river",
+          agent_id: "agent_local_alex",
+          assignment_id: "assignment_local_alex_private_channel",
+          discord_channel_id: "discord-channel-private-alex",
+          environment: "test",
+          context_version: "alex-week-2026-04-17",
+          context_update_mode: "manual_ssh"
         }
       }
     ]);
@@ -200,10 +215,66 @@ test("mapped user messages create a session and call the OpenClaw gateway client
     assert.equal(stored.openclaw_status, "ok");
     assert.equal(stored.openclaw_trace_id, "trace-local-1");
     assert.equal(stored.openclaw_provider_response_id, "provider-response-1");
+    assert.equal(routingMetadata.context_version, "alex-week-2026-04-17");
+    assert.equal(routingMetadata.context_update_mode, "manual_ssh");
+    assert.equal(typeof routingMetadata.context_updated_at, "string");
+    assert.notEqual(routingMetadata.context_updated_at.trim(), "");
+    assert.equal(routingMetadata.context_updated_by, "Srujan");
+    assert.equal(routingMetadata.user_id, "user_local_alex");
+    assert.equal(routingMetadata.expert_id, "expert_local_river");
+    assert.equal(routingMetadata.agent_id, "agent_local_alex");
+    assert.equal(routingMetadata.discord_channel_id, "discord-channel-private-alex");
+    assert.equal(routingMetadata.session_id, "session_discord-channel-private-alex_openclaw-agent-local-alex");
+    assert.equal(
+      routingMetadata.assignment_id,
+      "assignment_local_alex_private_channel"
+    );
+    assert.equal(routingMetadata.environment, "test");
     assert.equal(
       routingMetadata.openClawSessionKey,
       "discord:discord-channel-private-alex:agent:openclaw-agent-local-alex"
     );
+  });
+});
+
+test("mapped user messages still route when context metadata is unset", async () => {
+  await withDatabase(async (database) => {
+    const calls = [];
+    const openClaw = {
+      async sendUserMessage(request) {
+        calls.push(request);
+        return {
+          status: "ok",
+          traceId: "trace-local-2",
+          providerResponseId: "provider-response-2"
+        };
+      }
+    };
+
+    const result = await processDiscordMessagePayload(
+      {
+        id: "discord-message-route-user-2",
+        channelId: "discord-channel-private-alex",
+        author: { id: "discord-user-local-alex" },
+        content: "I still need the first step.",
+        timestamp: "2026-04-16T00:02:51.000Z"
+      },
+      { database, openClaw }
+    );
+
+    const stored = selectStoredMessage(database, "discord-message-route-user-2");
+    const routingMetadata = JSON.parse(stored.routing_metadata_json);
+
+    assert.equal(result.classified.messageType, "user_message");
+    assert.equal(result.openClaw?.status, "ok");
+    assert.equal(routingMetadata.context_version, null);
+    assert.equal(routingMetadata.context_update_mode, null);
+    assert.equal(routingMetadata.context_updated_at, null);
+    assert.equal(routingMetadata.context_updated_by, null);
+    assert.equal(routingMetadata.environment, "test");
+    assert.equal(routingMetadata.user_id, "user_local_alex");
+    assert.equal(routingMetadata.assignment_id, "assignment_local_alex_private_channel");
+    assert.equal(calls.length, 1);
   });
 });
 

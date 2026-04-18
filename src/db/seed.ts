@@ -1,4 +1,5 @@
 import type { SqliteDatabase } from "./sqlite.js";
+import { applyContextMetadataSchema } from "./context.js";
 import { PHASE_1_SCHEMA_SQL } from "./schema.js";
 
 export type SeedUser = {
@@ -100,6 +101,7 @@ export function validateRoutingSeed(value: unknown): asserts value is RoutingSee
 
 export function applyPhase1Schema(database: SqliteDatabase): void {
   database.exec(PHASE_1_SCHEMA_SQL);
+  applyContextMetadataSchema(database);
 }
 
 export function seedRoutingAssignments(database: SqliteDatabase, seed: RoutingSeedInput): void {

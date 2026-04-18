@@ -13,13 +13,24 @@ export type OpenClawGatewayRequest = {
   agentId: string;
   sessionKey: string;
   message: string;
-  metadata: {
-    discordMessageId: string;
-    discordChannelId: string;
-    userId: string;
-    expertId: string;
-    assignmentId: string;
-  };
+  metadata: OpenClawRequestMetadata;
+};
+
+export type OpenClawRequestMetadata = {
+  discordMessageId: string;
+  discordChannelId: string;
+  userId: string;
+  expertId: string;
+  assignmentId: string;
+  environment?: string | null;
+  context_version?: string | null;
+  context_update_mode?: string | null;
+  session_id?: string | null;
+  user_id?: string | null;
+  expert_id?: string | null;
+  agent_id?: string | null;
+  assignment_id?: string | null;
+  discord_channel_id?: string | null;
 };
 
 export type OpenClawGatewayClient = {
@@ -40,7 +51,7 @@ export type OpenClawGatewaySocket = {
 
 export const OPENCLAW_GATEWAY_CLIENT_DEFAULTS = {
   clientId: "cli",
-  clientMode: "operator",
+  clientMode: "backend",
   clientVersion: "0.1.0",
   clientPlatform: "node",
   deviceFamily: "server",
@@ -110,6 +121,32 @@ export function createUnconfiguredOpenClawGateway(): OpenClawGatewayClient {
         status: "not_configured",
         message: "OpenClaw gateway is not wired in this bootstrap slice."
       };
+    }
+  };
+}
+
+export function buildOpenRouterMetadata(metadata: OpenClawRequestMetadata): {
+  user: string | null;
+  session_id: string | null;
+  trace: Record<string, string | null>;
+} {
+  const userId = metadata.user_id ?? metadata.userId;
+  const sessionId = metadata.session_id ?? null;
+
+  return {
+    user: userId ?? null,
+    session_id: sessionId,
+    trace: {
+      discord_message_id: metadata.discordMessageId,
+      discord_channel_id: metadata.discord_channel_id ?? metadata.discordChannelId,
+      user_id: userId ?? null,
+      expert_id: metadata.expert_id ?? metadata.expertId,
+      agent_id: metadata.agent_id ?? null,
+      assignment_id: metadata.assignment_id ?? metadata.assignmentId,
+      environment: metadata.environment ?? null,
+      context_version: metadata.context_version ?? null,
+      context_update_mode: metadata.context_update_mode ?? null,
+      session_id: sessionId
     }
   };
 }

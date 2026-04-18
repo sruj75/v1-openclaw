@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createOpenClawGatewayClient } from "../dist/openclaw/index.js";
+import { buildOpenRouterMetadata, createOpenClawGatewayClient } from "../dist/openclaw/index.js";
 
 const signedAtMs = 1_710_000_000_000;
 
@@ -140,6 +140,42 @@ test("OpenClaw client waits for connect.challenge and signs device connect", asy
   });
 
   client.close();
+});
+
+test("OpenClaw client defaults to gateway-compatible backend mode", async () => {
+  const identity = await createDeviceIdentity();
+  const sockets = [];
+  const client = createOpenClawGatewayClient(
+    {
+      gatewayUrl: "wss://openclaw.test/gateway",
+      deviceIdentityJwk: identity.privateJwk,
+      requestTimeoutMs: 25
+    },
+    {
+      createWebSocket(url) {
+        const socket = new FakeOpenClawSocket(url);
+        sockets.push(socket);
+        return socket;
+      },
+      now: () => signedAtMs
+    }
+  );
+
+  const responsePromise = client.sendUserMessage(openClawRequest());
+  const socket = sockets[0];
+
+  await socket.emitGatewayMessage({
+    v: 3,
+    type: "event",
+    event: "connect.challenge",
+    payload: { nonce: "challenge-nonce-default-mode" }
+  });
+
+  await waitFor(() => socket.sentFrames.length === 1);
+  assert.equal(socket.sentFrames[0].params.client.mode, "backend");
+
+  socket.close();
+  await responsePromise;
 });
 
 test("OpenClaw client times out when connect.challenge is not delivered", async () => {
@@ -507,6 +543,43 @@ test("OpenClaw client waits for a fresh challenge after reconnect", async () => 
   assert.equal((await secondResponse).reply.content, "Second answer.");
 
   client.close();
+});
+
+test("OpenClaw metadata helper maps relay IDs into OpenRouter-friendly fields", () => {
+  assert.deepEqual(
+    buildOpenRouterMetadata({
+      discordMessageId: "discord-message-42",
+      discordChannelId: "discord-channel-42",
+      userId: "user-42",
+      expertId: "expert-42",
+      assignmentId: "assignment-42",
+      environment: "test",
+      context_version: "alex-week-2026-04-17",
+      context_update_mode: "manual_ssh",
+      session_id: "session-42",
+      user_id: "user-42",
+      expert_id: "expert-42",
+      agent_id: "agent-42",
+      assignment_id: "assignment-42",
+      discord_channel_id: "discord-channel-42"
+    }),
+    {
+      user: "user-42",
+      session_id: "session-42",
+      trace: {
+        discord_message_id: "discord-message-42",
+        discord_channel_id: "discord-channel-42",
+        user_id: "user-42",
+        expert_id: "expert-42",
+        agent_id: "agent-42",
+        assignment_id: "assignment-42",
+        environment: "test",
+        context_version: "alex-week-2026-04-17",
+        context_update_mode: "manual_ssh",
+        session_id: "session-42"
+      }
+    }
+  );
 });
 
 class FakeOpenClawSocket {
