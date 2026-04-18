@@ -6,6 +6,7 @@ import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 
 import { runContextSetCommand } from "../dist/context.js";
+import { ContextMetadataError, resolveContextMetadata } from "../dist/db/context.js";
 import { seedRoutingAssignments } from "../dist/db/seed.js";
 
 const seed = {
@@ -269,6 +270,27 @@ test("manual context metadata rejects unknown agent and assignment ids", async (
           }
         ),
       /Unknown active assignment id assignment_missing\./
+    );
+  } finally {
+    database.close();
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("missing context metadata resolves to null with a stable error code", async () => {
+  const tempDir = await mkdtemp(join(tmpdir(), "intentive-context-resolve-"));
+  const database = new DatabaseSync(join(tempDir, "context.sqlite"));
+
+  try {
+    seedRoutingAssignments(database, seed);
+
+    assert.equal(resolveContextMetadata(database, "agent_local_alex"), null);
+    assert.throws(
+      () => resolveContextMetadata(database, "agent_missing"),
+      (error) =>
+        error instanceof ContextMetadataError &&
+        error.code === "unknown_agent" &&
+        /Unknown agent id agent_missing\./.test(error.message)
     );
   } finally {
     database.close();

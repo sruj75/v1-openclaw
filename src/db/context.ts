@@ -19,8 +19,15 @@ export type ContextMetadataRecord = {
   contextUpdatedBy: string | null;
 };
 
+export type ContextMetadataErrorCode =
+  | "invalid_context_version"
+  | "invalid_target"
+  | "missing_metadata"
+  | "unknown_agent"
+  | "unknown_assignment";
+
 export class ContextMetadataError extends Error {
-  constructor(message: string) {
+  constructor(message: string, readonly code: ContextMetadataErrorCode) {
     super(message);
     this.name = "ContextMetadataError";
   }
@@ -80,7 +87,7 @@ export function getContextMetadata(
     .get(agentId) as ContextMetadataRow | undefined;
 
   if (!row) {
-    throw new ContextMetadataError(`Unknown agent id ${agentId}.`);
+    throw new ContextMetadataError(`Unknown agent id ${agentId}.`, "unknown_agent");
   }
 
   if (
@@ -91,7 +98,10 @@ export function getContextMetadata(
     typeof row.context_updated_at !== "string" ||
     row.context_updated_at.trim() === ""
   ) {
-    throw new ContextMetadataError(`Agent ${agentId} does not have recorded context metadata.`);
+    throw new ContextMetadataError(
+      `Agent ${agentId} does not have recorded context metadata.`,
+      "missing_metadata"
+    );
   }
 
   return {
@@ -112,10 +122,7 @@ export function resolveContextMetadata(
   try {
     return getContextMetadata(database, agentId, targetType);
   } catch (error) {
-    if (
-      error instanceof ContextMetadataError &&
-      error.message === `Agent ${agentId} does not have recorded context metadata.`
-    ) {
+    if (error instanceof ContextMetadataError && error.code === "missing_metadata") {
       return null;
     }
 
@@ -145,7 +152,10 @@ function resolveContextTarget(
   const hasAssignmentId = normalizeOptionalText(input.assignmentId) !== null;
 
   if (hasAgentId === hasAssignmentId) {
-    throw new ContextMetadataError("Provide exactly one of --agent-id or --assignment-id.");
+    throw new ContextMetadataError(
+      "Provide exactly one of --agent-id or --assignment-id.",
+      "invalid_target"
+    );
   }
 
   if (hasAgentId) {
@@ -162,7 +172,7 @@ function resolveContextTarget(
       .get(agentId) as { id: string } | undefined;
 
     if (!row) {
-      throw new ContextMetadataError(`Unknown agent id ${agentId}.`);
+      throw new ContextMetadataError(`Unknown agent id ${agentId}.`, "unknown_agent");
     }
 
     return { agentId: row.id, targetType: "agent" };
@@ -181,7 +191,10 @@ function resolveContextTarget(
     .get(assignmentId) as AssignmentTargetRow | undefined;
 
   if (!row) {
-    throw new ContextMetadataError(`Unknown active assignment id ${assignmentId}.`);
+    throw new ContextMetadataError(
+      `Unknown active assignment id ${assignmentId}.`,
+      "unknown_assignment"
+    );
   }
 
   return { agentId: row.agent_id, targetType: "assignment" };
@@ -190,7 +203,7 @@ function resolveContextTarget(
 function normalizeRequiredText(value: string, label: string): string {
   const normalized = normalizeOptionalText(value);
   if (!normalized) {
-    throw new ContextMetadataError(`${label} is required.`);
+    throw new ContextMetadataError(`${label} is required.`, "invalid_context_version");
   }
 
   return normalized;
