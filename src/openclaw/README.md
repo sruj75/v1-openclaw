@@ -58,3 +58,16 @@ event by `runId` and `sessionKey`. It also polls `chat.history` during the same
 window because operator connections may not receive every session-scoped chat
 event. If the terminal event does not include assistant text, it calls
 `chat.history` and returns the latest assistant or agent message.
+
+## Phase 3 Workspace Registry
+
+`openclaw-workspaces.json` is the committed product-level source of active
+OpenClaw workspaces for Phase 3 global runtime rollout. Each path in
+`workspaces` is an OpenClaw user workspace that receives the same resolved
+Braintrust runtime bundle version during a bundle apply. The top-level `config`
+path points to the OpenClaw config file used by future allowlisted config
+patching.
+
+The registry may use personal-name-style agent directory names while Phase 3 is
+being piloted. Do not put secrets, tokens, Discord IDs, phone numbers, therapist
+notes, or private user content in this file.
