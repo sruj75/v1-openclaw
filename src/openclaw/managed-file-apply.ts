@@ -27,6 +27,7 @@ type BundleFileSection = {
 };
 
 const fileSectionPattern = /^## File:\s*(.+?)\s*$/gm;
+const bundleSectionPattern = /^##\s+/gm;
 const managedStartPattern = /^<!-- INTENTIVE_MANAGED_START\b.* -->$/gm;
 const managedEndPattern = /^<!-- INTENTIVE_MANAGED_END -->$/gm;
 
@@ -99,9 +100,8 @@ function parseBundleFileSections(content: unknown): BundleFileSection[] {
   const seenPaths = new Set<string>();
 
   return matches.map((match, index) => {
-    const nextMatch = matches[index + 1];
     const sectionStart = match.index + match[0].length;
-    const sectionEnd = nextMatch?.index ?? content.length;
+    const sectionEnd = findNextBundleSection(content, sectionStart);
     const path = match[1].trim();
 
     if (seenPaths.has(path)) {
@@ -114,6 +114,13 @@ function parseBundleFileSections(content: unknown): BundleFileSection[] {
       content: trimSectionBlankLines(content.slice(sectionStart, sectionEnd))
     };
   });
+}
+
+function findNextBundleSection(content: string, start: number): number {
+  bundleSectionPattern.lastIndex = start;
+  const match = bundleSectionPattern.exec(content);
+
+  return match?.index ?? content.length;
 }
 
 function replaceManagedBlock(

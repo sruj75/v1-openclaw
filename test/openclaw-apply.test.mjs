@@ -111,8 +111,14 @@ test("fetches the latest bundle and applies it to every registry workspace and c
       }
     ]);
     assert.equal(result.resolvedVersionId, "version-latest-37");
-    assert.match(await readFile(join(firstWorkspace, "AGENTS.md"), "utf8"), /Shared runtime guidance/);
-    assert.match(await readFile(join(secondWorkspace, "AGENTS.md"), "utf8"), /Shared runtime guidance/);
+    const firstAgents = await readFile(join(firstWorkspace, "AGENTS.md"), "utf8");
+    const secondAgents = await readFile(join(secondWorkspace, "AGENTS.md"), "utf8");
+    assert.match(firstAgents, /Shared runtime guidance/);
+    assert.match(secondAgents, /Shared runtime guidance/);
+    assert.doesNotMatch(firstAgents, /## Config: openclaw/);
+    assert.doesNotMatch(secondAgents, /## Config: openclaw/);
+    assert.doesNotMatch(firstAgents, /"cadence"/);
+    assert.doesNotMatch(secondAgents, /"cadence"/);
     assert.deepEqual(JSON.parse(await readFile(configPath, "utf8")).agents.defaults.heartbeat, {
       enabled: true,
       cadence: "30m"
