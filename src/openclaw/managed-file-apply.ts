@@ -9,6 +9,18 @@ export type ApplyBraintrustBundleFileSectionsOptions = {
   appliedAt?: Date;
 };
 
+export type BraintrustBundleFileSectionPlan = {
+  targets: BraintrustBundleFileSectionTarget[];
+};
+
+export type BraintrustBundleFileSectionTarget = {
+  path: string;
+  workspace: string;
+  bundlePath: string;
+  changed: boolean;
+  content: string;
+};
+
 type BundleFileSection = {
   path: string;
   content: string;
@@ -21,9 +33,17 @@ const managedEndPattern = /^<!-- INTENTIVE_MANAGED_END -->$/gm;
 export async function applyBraintrustBundleFileSections(
   options: ApplyBraintrustBundleFileSectionsOptions
 ): Promise<void> {
+  const plan = await planBraintrustBundleFileSections(options);
+
+  await commitBraintrustBundleFileSectionPlan(plan);
+}
+
+export async function planBraintrustBundleFileSections(
+  options: ApplyBraintrustBundleFileSectionsOptions
+): Promise<BraintrustBundleFileSectionPlan> {
   const sections = parseBundleFileSections(options.bundle.content);
   const appliedAt = (options.appliedAt ?? new Date()).toISOString();
-  const updates: Array<{ path: string; content: string }> = [];
+  const targets: BraintrustBundleFileSectionTarget[] = [];
 
   for (const workspace of options.workspaces) {
     for (const section of sections) {
@@ -31,15 +51,26 @@ export async function applyBraintrustBundleFileSections(
       const existingContent = await readTargetFile(targetPath, section.path);
       const nextContent = replaceManagedBlock(existingContent, section, options.bundle, appliedAt);
 
-      updates.push({
+      targets.push({
         path: targetPath,
+        workspace,
+        bundlePath: section.path,
+        changed: nextContent !== existingContent,
         content: nextContent
       });
     }
   }
 
-  for (const update of updates) {
-    await writeFile(update.path, update.content, "utf8");
+  return { targets };
+}
+
+export async function commitBraintrustBundleFileSectionPlan(
+  plan: BraintrustBundleFileSectionPlan
+): Promise<void> {
+  for (const target of plan.targets) {
+    if (target.changed) {
+      await writeFile(target.path, target.content, "utf8");
+    }
   }
 }
 

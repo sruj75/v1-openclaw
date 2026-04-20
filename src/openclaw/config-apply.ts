@@ -8,6 +8,16 @@ export type ApplyBraintrustBundleOpenClawConfigOptions = {
   registryPath: string;
 };
 
+export type BraintrustBundleOpenClawConfigPlan = {
+  target: BraintrustBundleOpenClawConfigTarget;
+};
+
+export type BraintrustBundleOpenClawConfigTarget = {
+  path: string;
+  changed: boolean;
+  content: string;
+};
+
 type BundleConfigSection = {
   config: Record<string, unknown>;
 };
@@ -19,15 +29,36 @@ const disallowedKeyPattern =
 export async function applyBraintrustBundleOpenClawConfig(
   options: ApplyBraintrustBundleOpenClawConfigOptions
 ): Promise<void> {
+  const plan = await planBraintrustBundleOpenClawConfig(options);
+
+  await commitBraintrustBundleOpenClawConfigPlan(plan);
+}
+
+export async function planBraintrustBundleOpenClawConfig(
+  options: ApplyBraintrustBundleOpenClawConfigOptions
+): Promise<BraintrustBundleOpenClawConfigPlan> {
   const registry = await loadOpenClawWorkspaceRegistry(options.registryPath);
   const section = parseOpenClawConfigSection(options.bundle.content);
-  const existingConfig = parseJsonObject(
-    await readFile(registry.config, { encoding: "utf8" }),
-    "OpenClaw config"
-  );
+  const existingContent = await readFile(registry.config, { encoding: "utf8" });
+  const existingConfig = parseJsonObject(existingContent, "OpenClaw config");
   const nextConfig = applyAllowlistedConfigPatch(existingConfig, section.config);
+  const nextContent = `${JSON.stringify(nextConfig, null, 2)}\n`;
 
-  await writeFile(registry.config, `${JSON.stringify(nextConfig, null, 2)}\n`, "utf8");
+  return {
+    target: {
+      path: registry.config,
+      changed: nextContent !== existingContent,
+      content: nextContent
+    }
+  };
+}
+
+export async function commitBraintrustBundleOpenClawConfigPlan(
+  plan: BraintrustBundleOpenClawConfigPlan
+): Promise<void> {
+  if (plan.target.changed) {
+    await writeFile(plan.target.path, plan.target.content, "utf8");
+  }
 }
 
 function parseOpenClawConfigSection(content: unknown): BundleConfigSection {
