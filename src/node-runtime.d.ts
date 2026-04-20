@@ -17,23 +17,3 @@ declare module "node:path" {
   export function resolve(...paths: string[]): string;
   export const sep: string;
 }
-
-declare module "node:sqlite" {
-  export class DatabaseSync {
-    constructor(location?: string);
-    close(): void;
-    exec(sql: string): void;
-    prepare(sql: string): StatementSync;
-  }
-
-  export type RunResult = {
-    changes: number;
-    lastInsertRowid: number | bigint;
-  };
-
-  export interface StatementSync {
-    all(...anonymousParameters: unknown[]): unknown[];
-    get(...anonymousParameters: unknown[]): unknown | undefined;
-    run(...anonymousParameters: unknown[]): RunResult;
-  }
-}

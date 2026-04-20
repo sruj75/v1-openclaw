@@ -1,7 +1,16 @@
 # v1-openclaw
 
-Intentive v1 relay prototype for routing private Discord channel messages to an
-OpenClaw-backed agent workspace.
+Operator toolkit for Phase 3 OpenClaw runtime rollout.
+
+Phase 3 uses OpenClaw built-in channels as the runtime surface. OpenClaw
+built-in Discord is the current path for user and expert interaction. Future
+WhatsApp support should use the same OpenClaw built-in-channel model unless
+that proves impossible.
+
+This repository is no longer a Discord ingress service, SQLite relay router, or
+OpenClaw gateway proxy. Its active job is to apply Braintrust-managed runtime
+bundles to registered OpenClaw workspaces and keep enough docs and tests around
+that operator flow.
 
 ## Local Commands
 
@@ -11,16 +20,10 @@ Use the project Node runtime:
 nvm use
 ```
 
-Build the TypeScript service:
+Build the TypeScript operator tooling:
 
 ```sh
 npm run build
-```
-
-Run the synthetic local entrypoint:
-
-```sh
-npm run dev
 ```
 
 Run automated tests:
@@ -29,86 +32,55 @@ Run automated tests:
 npm test
 ```
 
-Seed local routing assignments into SQLite:
+Apply a Braintrust runtime bundle to every registered OpenClaw workspace:
 
 ```sh
-npm run seed:local
+BRAINTRUST_API_KEY=... \
+BRAINTRUST_PROJECT_ID=... \
+npm run openclaw:apply -- \
+  --braintrust-slug intentive-runtime-bundle \
+  --latest
 ```
 
-Run the real Discord bot adapter:
+Pinned rollout:
 
 ```sh
-npm run build
-DISCORD_BOT_TOKEN=... RELAY_DATABASE_PATH=data/local.sqlite node --no-warnings dist/main.js --discord
+BRAINTRUST_API_KEY=... \
+BRAINTRUST_PROJECT_ID=... \
+npm run openclaw:apply -- \
+  --braintrust-slug intentive-runtime-bundle \
+  --braintrust-version <version-id>
 ```
 
-The bootstrap slice does not require Discord or OpenClaw credentials. Without
-`OPENCLAW_GATEWAY_URL`, the relay uses the unconfigured OpenClaw placeholder.
-When `OPENCLAW_GATEWAY_URL` is set, the entrypoints use the real protocol v3
-OpenClaw WebSocket gateway client.
+## Runtime Direction
 
-## Discord Bot Setup
+OpenClaw owns the live channel runtime. The product path is:
 
-Required local environment:
+- OpenClaw built-in Discord for the current Phase 3 pilot runtime.
+- Braintrust-managed runtime bundles for shared prompt and config rollout.
+- `openclaw-workspaces.json` as the committed active-workspace registry.
+- Future WhatsApp through OpenClaw built-in channel support, not a separate
+  Intentive relay.
 
-- `DISCORD_BOT_TOKEN`: bot token from the Discord Developer Portal. Keep it in an ignored local shell profile or `.env` file, never in source.
-- `RELAY_DATABASE_PATH`: SQLite database with seeded routing assignments. Defaults to `data/local.sqlite`.
-
-Optional local environment:
-
-- `DISCORD_BOT_USER_ID`: bot user ID. The adapter also learns this from Discord `READY`, but setting it locally protects startup-edge self-message filtering.
-- `DISCORD_GATEWAY_INTENTS`: numeric gateway intent bitmask. The default is guild messages, direct/private messages, and message content.
-- `DISCORD_GATEWAY_URL`: override only for controlled gateway smoke tests.
-- `DISCORD_API_BASE_URL`: override only for controlled REST smoke tests.
-
-OpenClaw gateway environment:
-
-- `OPENCLAW_GATEWAY_URL`: OpenClaw protocol v3 WebSocket gateway URL. If unset, the relay keeps using the unconfigured fallback.
-- `OPENCLAW_DEVICE_IDENTITY_JWK`: Ed25519 OKP private JSON Web Key with `x` and `d`. Required when `OPENCLAW_GATEWAY_URL` is set so the relay can sign `connect.challenge`.
-- `OPENCLAW_GATEWAY_TOKEN`: optional shared gateway token. `OPENCLAW_AUTH_TOKEN` is also accepted as a local alias. Device identity is still required because token-only auth does not grant operator write scopes.
-- `OPENCLAW_CLIENT_ID` and `OPENCLAW_CLIENT_MODE`: default to the OpenClaw gateway-compatible client identity, `cli` and `backend`.
-- `OPENCLAW_CLIENT_PLATFORM`: normalized into the signed metadata. Defaults to `node`.
-- `OPENCLAW_DEVICE_FAMILY`: normalized into the signed metadata. Defaults to `server`.
-- `OPENCLAW_CLIENT_VERSION`, `OPENCLAW_LOCALE`, `OPENCLAW_USER_AGENT`, `OPENCLAW_REQUEST_TIMEOUT_MS`: optional gateway metadata and timeout controls.
-
-Safe test-channel expectations:
-
-- Use a private test DM or a tightly scoped private Discord channel that is seeded in `user_assignments.discord_channel_id`.
-- Do not invite production users into the smoke-test channel.
-- Confirm the bot can read messages and send messages in that channel before testing.
-- The adapter ignores bot/system/self messages and posts with `allowed_mentions.parse` empty, so test replies should not notify roles or everyone.
-
-Controlled smoke test:
-
-```sh
-npm test
-```
-
-The `Discord bot adapter normalizes private messages and posts relay replies to the same channel` test drives a fake Discord gateway and fake Discord REST API. It proves inbound `MESSAGE_CREATE` normalization, self-message loop prevention, relay processing, and outbound reply posting without live credentials.
-
-Live Phase 1 private-channel smoke:
-
-```sh
-npm run smoke:phase1
-```
-
-See `docs/phase1-private-channel-smoke.md` for required environment variables,
-verification queries, and known Phase 1 limitations.
-
-Phase 2 manual-pilot observability smoke:
-
-```sh
-npm run context:set -- --agent-id agent_local_alex --context-version alex-week-2026-04-17
-```
-
-See `docs/phase2-manual-pilot-smoke.md` for the manual workspace convention,
-OpenRouter Broadcast to Braintrust setup, SQLite verification queries, privacy
-notes, and HITL validation record.
+Relay-era surfaces have been retired. Do not reintroduce SQLite Discord routing,
+custom Discord gateway ingress, or an Intentive-managed OpenClaw gateway proxy
+as the product runtime without a new architecture decision.
 
 ## Module Homes
 
-- `src/config`: environment and service configuration
-- `src/db`: SQLite schema, seed workflow, routing lookup, and persistence boundary
-- `src/discord`: normalized Discord event types and synthetic event helpers
-- `src/relay`: relay orchestration for accepted normalized events
-- `src/openclaw`: OpenClaw gateway adapter boundary
+- `src/openclaw/apply.ts`: `openclaw:apply` command and Braintrust REST client
+- `src/openclaw/braintrust-bundle.ts`: Braintrust bundle fetch boundary
+- `src/openclaw/workspace-registry.ts`: active workspace registry loader
+- `src/openclaw/managed-file-apply.ts`: managed Markdown file section rollout
+- `src/openclaw/config-apply.ts`: allowlisted OpenClaw config patch rollout
+
+## Registry
+
+`openclaw-workspaces.json` lists every active OpenClaw user workspace that
+receives the same resolved Braintrust runtime bundle version during a rollout.
+The registry also names the OpenClaw config file used for allowlisted config
+patches.
+
+The registry may use personal-name-style agent directory names during the pilot.
+Do not put secrets, tokens, Discord IDs, phone numbers, therapist notes, or
+private user content in this file.
