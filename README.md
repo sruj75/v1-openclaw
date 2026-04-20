@@ -66,6 +66,9 @@ Relay-era surfaces have been retired. Do not reintroduce SQLite Discord routing,
 custom Discord gateway ingress, or an Intentive-managed OpenClaw gateway proxy
 as the product runtime without a new architecture decision.
 
+For the human-operated Phase 3 pilot setup, use
+[`docs/phase3-openclaw-discord-runtime.md`](docs/phase3-openclaw-discord-runtime.md).
+
 ## Module Homes
 
 - `src/openclaw/apply.ts`: `openclaw:apply` command and Braintrust REST client
