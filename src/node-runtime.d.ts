@@ -17,3 +17,7 @@ declare module "node:path" {
   export function resolve(...paths: string[]): string;
   export const sep: string;
 }
+
+declare module "node:url" {
+  export function pathToFileURL(path: string): URL;
+}

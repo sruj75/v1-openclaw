@@ -223,6 +223,68 @@ test("rejects secret and routing shaped keys inside the allowlisted heartbeat su
   }
 });
 
+test("rejects sensitive OpenClaw config key variants inside the heartbeat subtree", async () => {
+  const cases = ["authToken", "token_value", "apiKeyId", "client-secret"];
+
+  for (const key of cases) {
+    const root = await mkdtemp(join(tmpdir(), "openclaw-config-"));
+
+    try {
+      const registryPath = join(root, "openclaw-workspaces.json");
+      const configPath = join(root, "openclaw.json");
+      const originalConfig = JSON.stringify({
+        agents: {
+          defaults: {
+            heartbeat: {
+              enabled: false
+            }
+          }
+        }
+      });
+
+      await writeFile(
+        registryPath,
+        JSON.stringify({
+          workspaces: [join(root, "agents", "alex", "workspace")],
+          config: configPath
+        }),
+        "utf8"
+      );
+      await writeFile(configPath, originalConfig, "utf8");
+
+      await assert.rejects(
+        applyBraintrustBundleOpenClawConfig({
+          bundle: {
+            slug: "intentive-runtime",
+            resolvedVersionId: "bt-version-variant",
+            content: [
+              "## Config: openclaw",
+              "",
+              JSON.stringify({
+                agents: {
+                  defaults: {
+                    heartbeat: {
+                      enabled: true,
+                      [key]: "bundle-owned"
+                    }
+                  }
+                }
+              })
+            ].join("\n")
+          },
+          registryPath
+        }),
+        /OpenClaw config patch contains disallowed sensitive key/,
+        key
+      );
+
+      assert.equal(await readFile(configPath, "utf8"), originalConfig);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  }
+});
+
 test("rejects invalid or duplicate OpenClaw config sections before writing", async () => {
   const cases = [
     {

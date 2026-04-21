@@ -24,7 +24,7 @@ type BundleConfigSection = {
 
 const configSectionPattern = /^## Config:\s*openclaw\s*$/gm;
 const disallowedKeyPattern =
-  /^(auth|authorization|secret|secrets|token|tokens|credential|credentials|password|apiKey|api_key|channel|channels|routing|route|routes|binding|bindings|user|users|discord)$/i;
+  /auth|authorization|secret|token|credential|password|api[_-]?key|channel|routing|route|binding|discord|(?:^|[_-])users?(?:$|[_-]|[A-Z])/i;
 
 export async function applyBraintrustBundleOpenClawConfig(
   options: ApplyBraintrustBundleOpenClawConfigOptions

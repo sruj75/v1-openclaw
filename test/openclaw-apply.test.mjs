@@ -216,6 +216,62 @@ test("fetches a pinned bundle version and allows config-only bundles", async () 
   }
 });
 
+test("rejects Markdown bundles without supported section headers before writing", async () => {
+  const root = await mkdtemp(join(tmpdir(), "openclaw-apply-"));
+
+  try {
+    const workspace = join(root, "agents", "alex", "workspace");
+    const registryPath = join(root, "openclaw-workspaces.json");
+    const configPath = join(root, "openclaw.json");
+    const originalAgents = ["# Alex", ""].join("\n");
+    const originalConfig = JSON.stringify({
+      agents: {
+        defaults: {
+          heartbeat: {
+            enabled: false
+          }
+        }
+      }
+    });
+
+    await mkdir(workspace, { recursive: true });
+    await writeFile(registryPath, JSON.stringify({ workspaces: [workspace], config: configPath }), "utf8");
+    await writeFile(join(workspace, "AGENTS.md"), originalAgents, "utf8");
+    await writeFile(configPath, originalConfig, "utf8");
+
+    await assert.rejects(
+      runOpenClawApply(
+        {
+          braintrustSlug: "intentive-runtime-bundle",
+          latest: true,
+          registryPath,
+          env: {
+            BRAINTRUST_API_KEY: "test-api-key"
+          }
+        },
+        {
+          client: {
+            async fetchLatestBundle() {
+              return {
+                slug: "intentive-runtime-bundle",
+                versionId: "version-empty-37",
+                content: ["# Runtime bundle", "", "No supported rollout sections here."].join("\n")
+              };
+            }
+          },
+          writeLine() {}
+        }
+      ),
+      /Braintrust bundle must include at least one supported section/
+    );
+
+    assert.equal(await readFile(join(workspace, "AGENTS.md"), "utf8"), originalAgents);
+    assert.equal(await readFile(configPath, "utf8"), originalConfig);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("validates every file and config target before writing any changes", async () => {
   const root = await mkdtemp(join(tmpdir(), "openclaw-apply-"));
 
@@ -287,5 +343,40 @@ test("validates every file and config target before writing any changes", async 
     assert.equal(await readFile(configPath, "utf8"), originalConfig);
   } finally {
     await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("times out Braintrust REST bundle fetches instead of hanging", async () => {
+  const originalFetch = globalThis.fetch;
+  const calls = [];
+
+  globalThis.fetch = async (input, init) => {
+    calls.push({
+      url: String(input),
+      signal: init?.signal
+    });
+    const error = new Error("expired");
+    error.name = "TimeoutError";
+    throw error;
+  };
+
+  try {
+    await assert.rejects(
+      runOpenClawApply({
+        braintrustSlug: "intentive-runtime-bundle",
+        latest: true,
+        env: {
+          BRAINTRUST_API_KEY: "test-api-key",
+          BRAINTRUST_PROJECT_ID: "project-37"
+        }
+      }),
+      /Braintrust bundle fetch timed out after 30000ms/
+    );
+
+    assert.equal(calls.length, 1);
+    assert.ok(calls[0].url.includes("/v1/function"));
+    assert.ok(calls[0].signal instanceof AbortSignal);
+  } finally {
+    globalThis.fetch = originalFetch;
   }
 });

@@ -1,3 +1,5 @@
+import { pathToFileURL } from "node:url";
+
 import { fetchBraintrustRuntimeBundle, type BraintrustBundleClient } from "./braintrust-bundle.js";
 import {
   commitBraintrustBundleOpenClawConfigPlan,
@@ -40,6 +42,7 @@ export type OpenClawApplyDependencies = {
 const defaultRegistryPath = "openclaw-workspaces.json";
 const fileSectionPattern = /^## File:\s*(.+?)\s*$/m;
 const configSectionPattern = /^## Config:\s*openclaw\s*$/m;
+const braintrustFetchTimeoutMs = 30_000;
 
 export async function runOpenClawApply(
   options: OpenClawApplyOptions,
@@ -58,14 +61,21 @@ export async function runOpenClawApply(
   );
   const registry = await loadOpenClawWorkspaceRegistry(registryPath);
   const content = requireBundleMarkdown(bundle.content);
-  const filePlan = fileSectionPattern.test(content)
+  const hasFileSections = fileSectionPattern.test(content);
+  const hasConfigSection = configSectionPattern.test(content);
+
+  if (!hasFileSections && !hasConfigSection) {
+    throw new Error("Braintrust bundle must include at least one supported section (## File: ... or ## Config: openclaw).");
+  }
+
+  const filePlan = hasFileSections
     ? await planBraintrustBundleFileSections({
         bundle,
         workspaces: registry.workspaces,
         appliedAt: options.appliedAt
       })
     : emptyFilePlan();
-  const configPlan = configSectionPattern.test(content)
+  const configPlan = hasConfigSection
     ? await planBraintrustBundleOpenClawConfig({
         bundle,
         registryPath
@@ -189,11 +199,21 @@ async function fetchBraintrustFunctionBundle(options: {
     url.searchParams.set("version", options.version);
   }
 
-  const response = await fetch(url, {
-    headers: {
-      Authorization: `Bearer ${options.apiKey}`
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${options.apiKey}`
+      },
+      signal: AbortSignal.timeout(braintrustFetchTimeoutMs)
+    });
+  } catch (error) {
+    if (isAbortTimeoutError(error)) {
+      throw new Error(`Braintrust bundle fetch timed out after ${braintrustFetchTimeoutMs}ms.`);
     }
-  });
+
+    throw error;
+  }
 
   if (!response.ok) {
     throw new Error(`Braintrust bundle fetch failed with HTTP ${response.status}.`);
@@ -316,6 +336,13 @@ function readRequiredString(value: unknown, label: string): string {
   return text;
 }
 
-if (process.argv[1]?.endsWith("/openclaw/apply.js")) {
+function isAbortTimeoutError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    (error.name === "AbortError" || error.name === "TimeoutError")
+  );
+}
+
+if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
   await main();
 }
