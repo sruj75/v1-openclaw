@@ -27,7 +27,7 @@ type BundleFileSection = {
 };
 
 const fileSectionPattern = /^## File:\s*(.+?)\s*$/gm;
-const bundleSectionPattern = /^##\s+/gm;
+const bundleSectionPattern = /^##\s+(?:File:\s*.+?|Config:\s*openclaw)\s*$/gm;
 const managedStartPattern = /^<!-- INTENTIVE_MANAGED_START\b.* -->$/gm;
 const managedEndPattern = /^<!-- INTENTIVE_MANAGED_END -->$/gm;
 
@@ -99,7 +99,7 @@ function parseBundleFileSections(content: unknown): BundleFileSection[] {
 
   const seenPaths = new Set<string>();
 
-  return matches.map((match, index) => {
+  return matches.map((match) => {
     const sectionStart = match.index + match[0].length;
     const sectionEnd = findNextBundleSection(content, sectionStart);
     const path = match[1].trim();

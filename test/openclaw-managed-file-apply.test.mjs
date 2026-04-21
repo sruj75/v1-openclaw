@@ -95,6 +95,49 @@ test("inserts a managed block into an existing workspace file that has no manage
   }
 });
 
+test("preserves Markdown headings inside bundle file sections", async () => {
+  const root = await mkdtemp(join(tmpdir(), "openclaw-managed-"));
+
+  try {
+    await writeFile(join(root, "AGENTS.md"), ["# Agents", ""].join("\n"), "utf8");
+    await writeFile(join(root, "runtime.md"), ["# Runtime", ""].join("\n"), "utf8");
+
+    await applyBraintrustBundleFileSections({
+      bundle: {
+        slug: "intentive-runtime",
+        resolvedVersionId: "bt-version-8b",
+        content: [
+          "## File: AGENTS.md",
+          "",
+          "Shared runtime guidance.",
+          "",
+          "## Operating rules",
+          "",
+          "- Preserve this heading and list.",
+          "",
+          "## File: runtime.md",
+          "",
+          "Runtime managed defaults.",
+          ""
+        ].join("\n")
+      },
+      workspaces: [root],
+      appliedAt: new Date("2026-04-20T11:30:00.000Z")
+    });
+
+    const agents = await readFile(join(root, "AGENTS.md"), "utf8");
+    const runtime = await readFile(join(root, "runtime.md"), "utf8");
+
+    assert.match(agents, /Shared runtime guidance/);
+    assert.match(agents, /## Operating rules/);
+    assert.match(agents, /- Preserve this heading and list\./);
+    assert.doesNotMatch(agents, /Runtime managed defaults/);
+    assert.match(runtime, /Runtime managed defaults/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("fails before writes when a targeted file is missing from any workspace", async () => {
   const firstRoot = await mkdtemp(join(tmpdir(), "openclaw-managed-"));
   const secondRoot = await mkdtemp(join(tmpdir(), "openclaw-managed-"));
