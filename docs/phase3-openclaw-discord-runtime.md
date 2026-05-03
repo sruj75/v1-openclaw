@@ -137,6 +137,11 @@ npm run openclaw:apply -- \
 Record the resolved Langfuse prompt version printed by `openclaw:apply` in the
 private run log. Do not paste private bundle content into the run log.
 
+If the runtime bundle includes `## Config: openclaw`, it may set only
+`agents.defaults.heartbeat.prompt`, and that prompt must be non-empty.
+`openclaw:apply` merges the prompt into the existing heartbeat object so local
+OpenClaw heartbeat settings are not cleared by rollout.
+
 ## OpenRouter To Langfuse Observability
 
 OpenClaw should send model calls through OpenRouter. OpenRouter Broadcast then

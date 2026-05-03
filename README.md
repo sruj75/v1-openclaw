@@ -69,6 +69,11 @@ Relay-era surfaces have been retired. Do not reintroduce SQLite Discord routing,
 custom Discord gateway ingress, or an Intentive-managed OpenClaw gateway proxy
 as the product runtime without a new architecture decision.
 
+Runtime bundles may include `## Config: openclaw` only for the live heartbeat
+prompt patch. That patch must provide a non-empty
+`agents.defaults.heartbeat.prompt`; `openclaw:apply` preserves any existing
+heartbeat settings outside the bundle-owned prompt field.
+
 For the human-operated Phase 3 pilot setup, use
 [`docs/phase3-openclaw-discord-runtime.md`](docs/phase3-openclaw-discord-runtime.md).
 

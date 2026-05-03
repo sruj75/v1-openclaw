@@ -93,14 +93,20 @@ function applyAllowlistedConfigPatch(
   assertOnlyHeartbeatPatch(patch);
   const heartbeatPatch = readRequiredHeartbeatPatch(patch);
   assertLiveHeartbeatPatchKeys(heartbeatPatch);
+  const existingAgents = readObject(existingConfig.agents);
+  const existingDefaults = readObject(existingAgents.defaults);
+  const existingHeartbeat = readObject(existingDefaults.heartbeat);
 
   return {
     ...existingConfig,
     agents: {
-      ...readObject(existingConfig.agents),
+      ...existingAgents,
       defaults: {
-        ...readObject(readObject(existingConfig.agents).defaults),
-        heartbeat: heartbeatPatch
+        ...existingDefaults,
+        heartbeat: {
+          ...existingHeartbeat,
+          ...heartbeatPatch
+        }
       }
     }
   };
@@ -155,9 +161,10 @@ function assertLiveHeartbeatPatchKeys(heartbeat: Record<string, unknown>): void 
     if (!liveHeartbeatPatchKeys.has(key)) {
       throw new Error(`OpenClaw config patch path is not allowlisted by live schema: agents.defaults.heartbeat.${key}`);
     }
-    if (key === "prompt" && typeof value !== "string") {
-      throw new Error("OpenClaw config patch requires agents.defaults.heartbeat.prompt to be a string.");
-    }
+  }
+
+  if (typeof heartbeat.prompt !== "string" || heartbeat.prompt.trim().length === 0) {
+    throw new Error("OpenClaw config patch requires agents.defaults.heartbeat.prompt to be a non-empty string.");
   }
 }
 

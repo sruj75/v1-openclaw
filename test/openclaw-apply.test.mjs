@@ -168,6 +168,7 @@ test("fetches a Langfuse prompt by label and applies every file and config targe
     assert.doesNotMatch(secondAgents, /Use HEARTBEAT\.md for proactive guidance/);
     assert.doesNotMatch(secondHeartbeat, /Use HEARTBEAT\.md for proactive guidance/);
     assert.deepEqual(JSON.parse(await readFile(configPath, "utf8")).agents.defaults.heartbeat, {
+      enabled: false,
       prompt: "Use HEARTBEAT.md for proactive guidance."
     });
     assert.deepEqual(result.targets, [

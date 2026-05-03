@@ -24,7 +24,12 @@ Supported bundle sections:
 
 - `## File: <relative/path>` updates managed blocks in every registered
   workspace file.
-- `## Config: openclaw` patches allowlisted OpenClaw config keys.
+- `## Config: openclaw` patches the allowlisted OpenClaw heartbeat prompt.
+
+The only live config field a bundle may set is
+`agents.defaults.heartbeat.prompt`, and it must be a non-empty string. The
+apply step merges that prompt into the existing heartbeat object so bundle
+rollout does not erase operator-owned heartbeat settings.
 
 The command reports the resolved Langfuse prompt version plus changed or unchanged
 targets so operators can record the exact rollout version.

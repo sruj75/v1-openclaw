@@ -177,6 +177,11 @@ prompt should come from Langfuse-managed runtime behavior and the allowlisted
 OpenClaw heartbeat config shape supported by the live runtime, not hardcoded
 behavior in this repo.
 
+Runtime bundles may set only `agents.defaults.heartbeat.prompt` inside
+`## Config: openclaw`, and the prompt must be non-empty. The apply command
+merges that prompt with the existing heartbeat object so operator-owned
+heartbeat settings remain intact.
+
 ```text
 Proactive policy source:
 OpenClaw heartbeat/config location:

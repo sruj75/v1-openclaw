@@ -6,7 +6,7 @@ import test from "node:test";
 
 import { applyRuntimeBundleOpenClawConfig } from "../dist/openclaw/config-apply.js";
 
-test("applies an allowlisted heartbeat config section through the workspace registry config path", async () => {
+test("merges an allowlisted heartbeat config section through the workspace registry config path", async () => {
   const root = await mkdtemp(join(tmpdir(), "openclaw-config-"));
 
   try {
@@ -69,6 +69,7 @@ test("applies an allowlisted heartbeat config section through the workspace regi
         defaults: {
           model: "unchanged",
           heartbeat: {
+            enabled: false,
             prompt: "Check in with warmth."
           }
         }
@@ -372,6 +373,38 @@ test("rejects invalid or duplicate OpenClaw config sections before writing", asy
         })
       ].join("\n"),
       message: /OpenClaw config patch requires agents\.defaults\.heartbeat to be a JSON object/
+    },
+    {
+      name: "empty heartbeat patch",
+      content: [
+        "## Config: openclaw",
+        "",
+        JSON.stringify({
+          agents: {
+            defaults: {
+              heartbeat: {}
+            }
+          }
+        })
+      ].join("\n"),
+      message: /OpenClaw config patch requires agents\.defaults\.heartbeat\.prompt to be a non-empty string/
+    },
+    {
+      name: "blank heartbeat prompt",
+      content: [
+        "## Config: openclaw",
+        "",
+        JSON.stringify({
+          agents: {
+            defaults: {
+              heartbeat: {
+                prompt: " "
+              }
+            }
+          }
+        })
+      ].join("\n"),
+      message: /OpenClaw config patch requires agents\.defaults\.heartbeat\.prompt to be a non-empty string/
     }
   ];
 
