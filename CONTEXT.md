@@ -182,7 +182,7 @@ _Avoid_: user-facing support, session handoff, live intervention
 - The companion should maintain an **Evolving User Model** through existing OpenClaw workspace context, especially the **User Context File**.
 - The **Global Product Prompt** defines Intentive behavior once, while user-specific context flows through the **User Context File**.
 - The **Personalization Write Surface** is `USER.md`; runtime should not self-edit **Langfuse-Owned Prompt Surface** files for user preference or product behavior.
-- The **Virtual Workspace Roadmap** may later replace real filesystem storage, but it should not distract from the current #46 prompt rollout.
+- The **Virtual Workspace Roadmap** may later replace real filesystem storage, but it should not distract from the current Langfuse **V1 Prompt** rollout.
 - An **Execution Companion** acts as an **External Scaffold** for the user's **Executive Function State**.
 - The companion uses the **What Failure Lens** to detect the executive-function failure and the **Why Failure Layer** to infer the root cause.
 - The **Performance Bottleneck** is the connection between the **What Failure Lens** and the **Why Failure Layer**.
@@ -209,7 +209,7 @@ _Avoid_: user-facing support, session handoff, live intervention
 
 ## Example Dialogue
 
-> **Dev:** "Should #46 only roll out the heartbeat instructions?"
+> **Dev:** "Should we only roll out the heartbeat instructions?"
 > **Domain expert:** "No — the **V1 Prompt** is the full **Shared Operating Contract** for an **Execution Companion**. Heartbeats are only one behavior inside it."
 > **Dev:** "So should the companion just push the next action?"
 > **Domain expert:** "No — internally it should use the **What Failure Lens** and **Why Failure Layer** to find the **Performance Bottleneck**, then create a **State Shift**. The user should not hear the model jargon."
@@ -238,7 +238,7 @@ _Avoid_: user-facing support, session handoff, live intervention
 > **Dev:** "Can the companion personalize itself by editing SOUL.md or AGENTS.md?"
 > **Domain expert:** "No — those are **Langfuse-Owned Prompt Surface** files. The **Personalization Write Surface** is `USER.md`."
 > **Dev:** "Are we designing the future Postgres-backed workspace now?"
-> **Domain expert:** "No — remember the **Virtual Workspace Roadmap**, but focus #46 on the **Global Product Prompt**."
+> **Domain expert:** "No — remember the **Virtual Workspace Roadmap**, but focus the Langfuse rollout on the **Global Product Prompt**."
 > **Dev:** "When human-in-the-loop is enabled, is the expert the companion's boss?"
 > **Domain expert:** "No — the **Human Loop Partner** does complementary work alongside the companion, not authority, collaboration, or background supervision."
 > **Dev:** "Should the companion mention feature modules to the user?"

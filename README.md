@@ -80,6 +80,11 @@ For the human-operated Phase 3 pilot setup, use
 For the Phase 4 two-user productized manual pilot, use
 [`docs/phase4-productized-manual-pilot.md`](docs/phase4-productized-manual-pilot.md).
 
+Shared product vocabulary for the pilot runtime lives in
+[`CONTEXT.md`](CONTEXT.md). Human-readable bundle section examples that mirror
+the Langfuse-managed prompt live under [`langfuse-bundle/`](langfuse-bundle/)
+(the canonical prompt is in Langfuse, not only in git).
+
 ## Module Homes
 
 - `src/openclaw/apply.ts`: `openclaw:apply` command

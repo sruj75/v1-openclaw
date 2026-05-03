@@ -7,9 +7,18 @@ repository: v1-openclaw
 topic: "Phase 3 OpenClaw-native runtime and Braintrust prompt loop, issues #31-#40"
 tags: [research, codebase, phase-3, openclaw, braintrust, relay, discord]
 status: complete
-last_updated: 2026-04-20
+last_updated: 2026-05-03
 last_updated_by: Codex
+superseded_by: "Branch codex/phase-4: Langfuse runtime-bundle (`src/openclaw/runtime-bundle.ts`), `openclaw:apply` Langfuse flags, OpenRouter Broadcast → Langfuse; Braintrust bundle module removed from tree."
 ---
+
+> **Historical snapshot (2026-04-20, `codex/phase-3`).** This note documents the
+> repository *as of that commit* (relay-centric codebase, no `openclaw:apply` yet).
+> It is **not** a description of the current default branch / Phase 4 work. For
+> today’s operator model, read the root [`README.md`](../../../README.md),
+> [`src/openclaw/README.md`](../../../src/openclaw/README.md), and
+> [`docs/phase3-openclaw-discord-runtime.md`](../../../docs/phase3-openclaw-discord-runtime.md) /
+> [`docs/phase4-productized-manual-pilot.md`](../../../docs/phase4-productized-manual-pilot.md).
 
 # Research: Phase 3 OpenClaw-Native Runtime and Braintrust Prompt Loop
 
