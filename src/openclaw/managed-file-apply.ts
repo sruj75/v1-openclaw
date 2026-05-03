@@ -1,19 +1,19 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 
-import type { BraintrustRuntimeBundle } from "./braintrust-bundle.js";
+import type { RuntimeBundle } from "./runtime-bundle.js";
 
-export type ApplyBraintrustBundleFileSectionsOptions = {
-  bundle: BraintrustRuntimeBundle;
+export type ApplyRuntimeBundleFileSectionsOptions = {
+  bundle: RuntimeBundle;
   workspaces: string[];
   appliedAt?: Date;
 };
 
-export type BraintrustBundleFileSectionPlan = {
-  targets: BraintrustBundleFileSectionTarget[];
+export type RuntimeBundleFileSectionPlan = {
+  targets: RuntimeBundleFileSectionTarget[];
 };
 
-export type BraintrustBundleFileSectionTarget = {
+export type RuntimeBundleFileSectionTarget = {
   path: string;
   workspace: string;
   bundlePath: string;
@@ -31,20 +31,20 @@ const bundleSectionPattern = /^##\s+(?:File:\s*.+?|Config:\s*openclaw)\s*$/gm;
 const managedStartPattern = /^<!-- INTENTIVE_MANAGED_START\b.* -->$/gm;
 const managedEndPattern = /^<!-- INTENTIVE_MANAGED_END -->$/gm;
 
-export async function applyBraintrustBundleFileSections(
-  options: ApplyBraintrustBundleFileSectionsOptions
+export async function applyRuntimeBundleFileSections(
+  options: ApplyRuntimeBundleFileSectionsOptions
 ): Promise<void> {
-  const plan = await planBraintrustBundleFileSections(options);
+  const plan = await planRuntimeBundleFileSections(options);
 
-  await commitBraintrustBundleFileSectionPlan(plan);
+  await commitRuntimeBundleFileSectionPlan(plan);
 }
 
-export async function planBraintrustBundleFileSections(
-  options: ApplyBraintrustBundleFileSectionsOptions
-): Promise<BraintrustBundleFileSectionPlan> {
+export async function planRuntimeBundleFileSections(
+  options: ApplyRuntimeBundleFileSectionsOptions
+): Promise<RuntimeBundleFileSectionPlan> {
   const sections = parseBundleFileSections(options.bundle.content);
   const appliedAt = (options.appliedAt ?? new Date()).toISOString();
-  const targets: BraintrustBundleFileSectionTarget[] = [];
+  const targets: RuntimeBundleFileSectionTarget[] = [];
 
   for (const workspace of options.workspaces) {
     for (const section of sections) {
@@ -65,8 +65,8 @@ export async function planBraintrustBundleFileSections(
   return { targets };
 }
 
-export async function commitBraintrustBundleFileSectionPlan(
-  plan: BraintrustBundleFileSectionPlan
+export async function commitRuntimeBundleFileSectionPlan(
+  plan: RuntimeBundleFileSectionPlan
 ): Promise<void> {
   for (const target of plan.targets) {
     if (target.changed) {
@@ -89,12 +89,12 @@ async function readTargetFile(targetPath: string, bundlePath: string): Promise<s
 
 function parseBundleFileSections(content: unknown): BundleFileSection[] {
   if (typeof content !== "string") {
-    throw new Error("Braintrust bundle file section content must be Markdown text.");
+    throw new Error("Runtime bundle file section content must be Markdown text.");
   }
 
   const matches = [...content.matchAll(fileSectionPattern)];
   if (matches.length === 0) {
-    throw new Error("Braintrust bundle must include at least one ## File section.");
+    throw new Error("Runtime bundle must include at least one ## File section.");
   }
 
   const seenPaths = new Set<string>();
@@ -126,7 +126,7 @@ function findNextBundleSection(content: string, start: number): number {
 function replaceManagedBlock(
   existingContent: string,
   section: BundleFileSection,
-  bundle: BraintrustRuntimeBundle,
+  bundle: RuntimeBundle,
   appliedAt: string
 ): string {
   const startMatches = [...existingContent.matchAll(managedStartPattern)];

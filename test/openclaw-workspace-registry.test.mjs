@@ -8,16 +8,16 @@ test("loads the committed OpenClaw workspace registry for Phase 3 rollout", asyn
 
   assert.deepEqual(registry, {
     workspaces: [
-      "/home/openclaw/.openclaw/agents/alex/workspace",
-      "/home/openclaw/.openclaw/agents/mia/workspace"
+      "/home/srujanu/.openclaw/workspace-srujan",
+      "/home/srujanu/.openclaw/workspace-ruthvik"
     ],
-    config: "/home/openclaw/.openclaw/openclaw.json"
+    config: "/home/srujanu/.openclaw/openclaw.json"
   });
 
   assert.equal(new Set(registry.workspaces).size, registry.workspaces.length);
-  assert.ok(registry.workspaces.every((workspace) => workspace.endsWith("/workspace")));
+  assert.ok(registry.workspaces.every((workspace) => workspace.startsWith("/home/srujanu/.openclaw/workspace-")));
   assert.ok(
-    registry.workspaces.every((workspace) => workspace.startsWith("/home/openclaw/.openclaw/agents/"))
+    registry.workspaces.every((workspace) => /workspace-(srujan|ruthvik)$/.test(workspace))
   );
   assert.ok(registry.config.endsWith("/openclaw.json"));
 

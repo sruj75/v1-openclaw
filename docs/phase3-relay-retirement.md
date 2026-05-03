@@ -10,7 +10,7 @@ OpenClaw built-in Discord is the current runtime path. Future WhatsApp support
 should use OpenClaw built-in channel support unless that proves impossible.
 
 The surviving repository responsibility is intentionally small: apply
-Braintrust-managed runtime bundles to registered OpenClaw workspaces, maintain
+Langfuse-managed runtime prompts to registered OpenClaw workspaces, maintain
 the active workspace registry, and keep rollout checks green. Relay-era smoke
 tests, scripts, migrations, and runtime modules were removed so operators do not
 treat the relay as an active fallback option.

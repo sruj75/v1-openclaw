@@ -1,7 +1,7 @@
 {
   "workspaces": [
-    "/home/openclaw/.openclaw/agents/alex/workspace",
-    "/home/openclaw/.openclaw/agents/mia/workspace"
+    "/home/srujanu/.openclaw/workspace-srujan",
+    "/home/srujanu/.openclaw/workspace-ruthvik"
   ],
-  "config": "/home/openclaw/.openclaw/openclaw.json"
+  "config": "/home/srujanu/.openclaw/openclaw.json"
 }

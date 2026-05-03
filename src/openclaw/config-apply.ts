@@ -1,18 +1,18 @@
 import { readFile, writeFile } from "node:fs/promises";
 
-import type { BraintrustRuntimeBundle } from "./braintrust-bundle.js";
+import type { RuntimeBundle } from "./runtime-bundle.js";
 import { loadOpenClawWorkspaceRegistry } from "./workspace-registry.js";
 
-export type ApplyBraintrustBundleOpenClawConfigOptions = {
-  bundle: BraintrustRuntimeBundle;
+export type ApplyRuntimeBundleOpenClawConfigOptions = {
+  bundle: RuntimeBundle;
   registryPath: string;
 };
 
-export type BraintrustBundleOpenClawConfigPlan = {
-  target: BraintrustBundleOpenClawConfigTarget;
+export type RuntimeBundleOpenClawConfigPlan = {
+  target: RuntimeBundleOpenClawConfigTarget;
 };
 
-export type BraintrustBundleOpenClawConfigTarget = {
+export type RuntimeBundleOpenClawConfigTarget = {
   path: string;
   changed: boolean;
   content: string;
@@ -25,18 +25,19 @@ type BundleConfigSection = {
 const configSectionPattern = /^## Config:\s*openclaw\s*$/gm;
 const disallowedKeyPattern =
   /auth|authorization|secret|token|credential|password|api[_-]?key|channel|routing|route|binding|discord|(?:^|[_-])users?(?:$|[_-]|[A-Z])/i;
+const liveHeartbeatPatchKeys = new Set(["prompt"]);
 
-export async function applyBraintrustBundleOpenClawConfig(
-  options: ApplyBraintrustBundleOpenClawConfigOptions
+export async function applyRuntimeBundleOpenClawConfig(
+  options: ApplyRuntimeBundleOpenClawConfigOptions
 ): Promise<void> {
-  const plan = await planBraintrustBundleOpenClawConfig(options);
+  const plan = await planRuntimeBundleOpenClawConfig(options);
 
-  await commitBraintrustBundleOpenClawConfigPlan(plan);
+  await commitRuntimeBundleOpenClawConfigPlan(plan);
 }
 
-export async function planBraintrustBundleOpenClawConfig(
-  options: ApplyBraintrustBundleOpenClawConfigOptions
-): Promise<BraintrustBundleOpenClawConfigPlan> {
+export async function planRuntimeBundleOpenClawConfig(
+  options: ApplyRuntimeBundleOpenClawConfigOptions
+): Promise<RuntimeBundleOpenClawConfigPlan> {
   const registry = await loadOpenClawWorkspaceRegistry(options.registryPath);
   const section = parseOpenClawConfigSection(options.bundle.content);
   const existingContent = await readFile(registry.config, { encoding: "utf8" });
@@ -53,8 +54,8 @@ export async function planBraintrustBundleOpenClawConfig(
   };
 }
 
-export async function commitBraintrustBundleOpenClawConfigPlan(
-  plan: BraintrustBundleOpenClawConfigPlan
+export async function commitRuntimeBundleOpenClawConfigPlan(
+  plan: RuntimeBundleOpenClawConfigPlan
 ): Promise<void> {
   if (plan.target.changed) {
     await writeFile(plan.target.path, plan.target.content, "utf8");
@@ -63,15 +64,15 @@ export async function commitBraintrustBundleOpenClawConfigPlan(
 
 function parseOpenClawConfigSection(content: unknown): BundleConfigSection {
   if (typeof content !== "string") {
-    throw new Error("Braintrust bundle config section content must be Markdown text.");
+    throw new Error("Runtime bundle config section content must be Markdown text.");
   }
 
   const matches = [...content.matchAll(configSectionPattern)];
   if (matches.length === 0) {
-    throw new Error("Braintrust bundle must include one ## Config: openclaw section.");
+    throw new Error("Runtime bundle must include one ## Config: openclaw section.");
   }
   if (matches.length > 1) {
-    throw new Error("Braintrust bundle must not include duplicate ## Config: openclaw sections.");
+    throw new Error("Runtime bundle must not include duplicate ## Config: openclaw sections.");
   }
 
   const match = matches[0];
@@ -80,7 +81,7 @@ function parseOpenClawConfigSection(content: unknown): BundleConfigSection {
   const sectionText = trimSectionBlankLines(content.slice(sectionStart, sectionEnd));
 
   return {
-    config: parseJsonObject(sectionText, "Braintrust openclaw config section")
+    config: parseJsonObject(sectionText, "Runtime openclaw config section")
   };
 }
 
@@ -91,6 +92,7 @@ function applyAllowlistedConfigPatch(
   assertNoSensitiveKeys(patch);
   assertOnlyHeartbeatPatch(patch);
   const heartbeatPatch = readRequiredHeartbeatPatch(patch);
+  assertLiveHeartbeatPatchKeys(heartbeatPatch);
 
   return {
     ...existingConfig,
@@ -146,6 +148,17 @@ function readRequiredHeartbeatPatch(patch: Record<string, unknown>): Record<stri
   }
 
   return heartbeat;
+}
+
+function assertLiveHeartbeatPatchKeys(heartbeat: Record<string, unknown>): void {
+  for (const [key, value] of Object.entries(heartbeat)) {
+    if (!liveHeartbeatPatchKeys.has(key)) {
+      throw new Error(`OpenClaw config patch path is not allowlisted by live schema: agents.defaults.heartbeat.${key}`);
+    }
+    if (key === "prompt" && typeof value !== "string") {
+      throw new Error("OpenClaw config patch requires agents.defaults.heartbeat.prompt to be a string.");
+    }
+  }
 }
 
 function parseJsonObject(text: string, label: string): Record<string, unknown> {

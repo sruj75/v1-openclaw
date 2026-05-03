@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import test from "node:test";
 
-import { applyBraintrustBundleFileSections } from "../dist/openclaw/managed-file-apply.js";
+import { applyRuntimeBundleFileSections } from "../dist/openclaw/managed-file-apply.js";
 
 test("applies a bundle file section while preserving content outside the managed block", async () => {
   const root = await mkdtemp(join(tmpdir(), "openclaw-managed-"));
@@ -27,10 +27,10 @@ test("applies a bundle file section while preserving content outside the managed
       "utf8"
     );
 
-    await applyBraintrustBundleFileSections({
+    await applyRuntimeBundleFileSections({
       bundle: {
         slug: "intentive-runtime",
-        resolvedVersionId: "bt-version-7",
+        resolvedVersionId: "lf-version-7",
         content: ["## File: AGENTS.md", "", "New runtime instructions.", ""].join("\n")
       },
       workspaces: [root],
@@ -44,7 +44,7 @@ test("applies a bundle file section while preserving content outside the managed
         "",
         "Operator note before the managed block.",
         "",
-        "<!-- INTENTIVE_MANAGED_START bundle_slug=\"intentive-runtime\" bundle_version=\"bt-version-7\" applied_at=\"2026-04-20T10:30:00.000Z\" file=\"AGENTS.md\" -->",
+        "<!-- INTENTIVE_MANAGED_START bundle_slug=\"intentive-runtime\" bundle_version=\"lf-version-7\" applied_at=\"2026-04-20T10:30:00.000Z\" file=\"AGENTS.md\" -->",
         "New runtime instructions.",
         "<!-- INTENTIVE_MANAGED_END -->",
         "",
@@ -67,10 +67,10 @@ test("inserts a managed block into an existing workspace file that has no manage
       "utf8"
     );
 
-    await applyBraintrustBundleFileSections({
+    await applyRuntimeBundleFileSections({
       bundle: {
         slug: "intentive-runtime",
-        resolvedVersionId: "bt-version-8",
+        resolvedVersionId: "lf-version-8",
         content: ["## File: runtime.md", "", "Managed runtime defaults.", ""].join("\n")
       },
       workspaces: [root],
@@ -84,7 +84,7 @@ test("inserts a managed block into an existing workspace file that has no manage
         "",
         "Human-authored setup notes.",
         "",
-        "<!-- INTENTIVE_MANAGED_START bundle_slug=\"intentive-runtime\" bundle_version=\"bt-version-8\" applied_at=\"2026-04-20T11:00:00.000Z\" file=\"runtime.md\" -->",
+        "<!-- INTENTIVE_MANAGED_START bundle_slug=\"intentive-runtime\" bundle_version=\"lf-version-8\" applied_at=\"2026-04-20T11:00:00.000Z\" file=\"runtime.md\" -->",
         "Managed runtime defaults.",
         "<!-- INTENTIVE_MANAGED_END -->",
         ""
@@ -102,10 +102,10 @@ test("preserves Markdown headings inside bundle file sections", async () => {
     await writeFile(join(root, "AGENTS.md"), ["# Agents", ""].join("\n"), "utf8");
     await writeFile(join(root, "runtime.md"), ["# Runtime", ""].join("\n"), "utf8");
 
-    await applyBraintrustBundleFileSections({
+    await applyRuntimeBundleFileSections({
       bundle: {
         slug: "intentive-runtime",
-        resolvedVersionId: "bt-version-8b",
+        resolvedVersionId: "lf-version-8b",
         content: [
           "## File: AGENTS.md",
           "",
@@ -154,10 +154,10 @@ test("fails before writes when a targeted file is missing from any workspace", a
     await writeFile(join(firstRoot, "AGENTS.md"), original, "utf8");
 
     await assert.rejects(
-      applyBraintrustBundleFileSections({
+      applyRuntimeBundleFileSections({
         bundle: {
           slug: "intentive-runtime",
-          resolvedVersionId: "bt-version-9",
+          resolvedVersionId: "lf-version-9",
           content: ["## File: AGENTS.md", "", "New managed text.", ""].join("\n")
         },
         workspaces: [firstRoot, secondRoot],
@@ -216,10 +216,10 @@ test("rejects unsafe or duplicate bundle file sections before writes", async () 
       await writeFile(join(root, "AGENTS.md"), original, "utf8");
 
       await assert.rejects(
-        applyBraintrustBundleFileSections({
+        applyRuntimeBundleFileSections({
           bundle: {
             slug: "intentive-runtime",
-            resolvedVersionId: "bt-version-10",
+            resolvedVersionId: "lf-version-10",
             content: unsafeCase.content
           },
           workspaces: [root],
@@ -261,10 +261,10 @@ test("rejects malformed managed markers before writing any workspace file", asyn
     await writeFile(join(malformedRoot, "AGENTS.md"), malformedOriginal, "utf8");
 
     await assert.rejects(
-      applyBraintrustBundleFileSections({
+      applyRuntimeBundleFileSections({
         bundle: {
           slug: "intentive-runtime",
-          resolvedVersionId: "bt-version-11",
+          resolvedVersionId: "lf-version-11",
           content: ["## File: AGENTS.md", "", "New managed text.", ""].join("\n")
         },
         workspaces: [validRoot, malformedRoot],
@@ -288,10 +288,10 @@ test("applies multiple bundle file sections to existing files in a workspace", a
     await writeFile(join(root, "AGENTS.md"), ["# Agents", ""].join("\n"), "utf8");
     await writeFile(join(root, "runtime.md"), ["# Runtime", ""].join("\n"), "utf8");
 
-    await applyBraintrustBundleFileSections({
+    await applyRuntimeBundleFileSections({
       bundle: {
         slug: "intentive-runtime",
-        resolvedVersionId: "bt-version-12",
+        resolvedVersionId: "lf-version-12",
         content: [
           "## File: AGENTS.md",
           "",

@@ -1,7 +1,7 @@
 # OpenClaw Phase 3 Toolkit
 
 `src/openclaw` contains the active Phase 3 operator tooling for applying
-Braintrust-managed runtime bundles to OpenClaw workspaces.
+Langfuse-managed runtime prompts to OpenClaw workspaces.
 
 OpenClaw built-in Discord is the current runtime surface. Future WhatsApp should
 follow the OpenClaw built-in-channel path unless that proves impossible. This
@@ -10,10 +10,12 @@ or OpenClaw gateway proxy.
 
 ## Bundle Apply Flow
 
-`openclaw:apply` resolves a Braintrust runtime bundle by slug and either:
+`openclaw:apply` resolves a Langfuse text prompt by name and exactly one
+selector:
 
+- `--langfuse-label production`
 - `--latest`
-- `--braintrust-version <version-id>`
+- `--langfuse-version <number>`
 
 The command loads `openclaw-workspaces.json`, builds file and config plans, then
 validates every target before writing changes.
@@ -24,7 +26,7 @@ Supported bundle sections:
   workspace file.
 - `## Config: openclaw` patches allowlisted OpenClaw config keys.
 
-The command reports the resolved Braintrust version plus changed or unchanged
+The command reports the resolved Langfuse prompt version plus changed or unchanged
 targets so operators can record the exact rollout version.
 
 ## Workspace Registry
@@ -32,7 +34,7 @@ targets so operators can record the exact rollout version.
 `openclaw-workspaces.json` is the committed product-level source of active
 OpenClaw workspaces for Phase 3 global runtime rollout. Each path in
 `workspaces` is an OpenClaw user workspace that receives the same resolved
-Braintrust runtime bundle version during a bundle apply. The top-level `config`
+Langfuse runtime prompt version during a bundle apply. The top-level `config`
 path points to the OpenClaw config file used by allowlisted config patching.
 
 The registry may use personal-name-style agent directory names while Phase 3 is
