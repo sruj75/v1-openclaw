@@ -49,20 +49,6 @@ test("repo narrative names OpenClaw built-in channels as the runtime path", asyn
   assert.match(phase4PilotDoc, /Private message content omitted:/);
   assert.match(phase4PilotDoc, /OpenRouter Broadcast to Langfuse confirmed:/);
   assert.match(phase4PilotDoc, /Experiment candidate added: yes\/no\/not useful/);
-  assert.match(phase4PilotDoc, /OpenRouter-to-Langfuse Identity Contract/);
-  assert.match(phase4PilotDoc, /OpenRouter `user`\s+->\s+Langfuse User/);
-  assert.match(phase4PilotDoc, /OpenRouter `session_id`\s+->\s+Langfuse Session/);
-  assert.match(phase4PilotDoc, /OpenRouter `trace\.tenant_id`/);
-  assert.match(phase4PilotDoc, /OpenRouter `trace\.openclaw_agent_id`/);
-  assert.match(phase4PilotDoc, /OpenRouter `trace\.workspace_label`/);
-  assert.match(phase4PilotDoc, /OpenRouter `trace\.prompt_name`/);
-  assert.match(phase4PilotDoc, /OpenRouter `trace\.prompt_version` or `trace\.prompt_label`/);
-  assert.match(phase4PilotDoc, /never contain real names, Discord IDs, tokens, private message content, or\s+therapist notes/);
-  assert.match(phase4PilotDoc, /Langfuse Users separation evidence:/);
-  assert.match(phase4PilotDoc, /Langfuse Sessions separation evidence:/);
-  assert.match(phase4PilotDoc, /Metadata filter proof \(tenant\/user, agent, workspace, channel, prompt, version\/label\):/);
-  assert.match(phase4PilotDoc, /Only traces with required identity fields referenced: yes\/no/);
-  assert.match(phase4PilotDoc, /No cross-user trace\/session ambiguity: yes\/no/);
   assert.match(phase4PilotDoc, /Do not commit or paste private pilot material/);
   assert.match(phase4PilotDoc, /Founder Acceptance Review/);
 

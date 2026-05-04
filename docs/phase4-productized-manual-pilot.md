@@ -75,32 +75,6 @@ Safe evidence should use redacted labels:
 - `<langfuse-trace-a>`
 - `<langfuse-trace-b>`
 
-Observability identifiers used for OpenRouter and Langfuse must be redacted and
-must never contain real names, Discord IDs, tokens, private message content, or
-therapist notes.
-
-## OpenRouter-to-Langfuse Identity Contract
-
-Every OpenRouter request used for Phase 4 acceptance evidence must carry the
-same identity contract so Langfuse can cleanly separate pilot users and
-sessions.
-
-Required fields and Langfuse mapping:
-
-- OpenRouter `user` -> Langfuse User
-- OpenRouter `session_id` -> Langfuse Session
-- OpenRouter `trace.trace_name` -> Langfuse Trace metadata `trace_name`
-- OpenRouter `trace.environment` -> Langfuse Trace metadata `environment`
-- OpenRouter `trace.tenant_id` -> Langfuse Trace metadata `tenant_id`
-- OpenRouter `trace.openclaw_agent_id` -> Langfuse Trace metadata `openclaw_agent_id`
-- OpenRouter `trace.workspace_label` -> Langfuse Trace metadata `workspace_label`
-- OpenRouter `trace.channel` -> Langfuse Trace metadata `channel`
-- OpenRouter `trace.prompt_name` -> Langfuse Trace metadata `prompt_name`
-- OpenRouter `trace.prompt_version` or `trace.prompt_label` -> Langfuse Trace metadata prompt version selector
-
-These fields are mandatory for evidence used in this runbook. If any trace
-lacks required identity fields, do not use it for Phase 4 acceptance evidence.
-
 ## Runbook
 
 ### 1. Prepare The Pilot Record
@@ -284,10 +258,6 @@ Langfuse project label:
 Approximate trace timestamp:
 Trace link or trace ID:
 Matching runtime/user/session labels:
-Langfuse Users separation evidence:
-Langfuse Sessions separation evidence:
-Metadata filter proof (tenant/user, agent, workspace, channel, prompt, version/label):
-Only traces with required identity fields referenced: yes/no
 Private message content omitted:
 OpenRouter Broadcast to Langfuse confirmed:
 Annotation queue review added: yes/no/not useful
@@ -313,7 +283,6 @@ Workspace isolation checked:
 Session/runtime isolation checked:
 Handoff target isolation checked:
 Langfuse label/trace separation checked:
-No cross-user trace/session ambiguity: yes/no
 No cross-user leakage observed:
 If leakage or ambiguity occurred, details:
 Operator:
