@@ -4,9 +4,9 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import test from "node:test";
 
-import { applyBraintrustBundleOpenClawConfig } from "../dist/openclaw/config-apply.js";
+import { applyRuntimeBundleOpenClawConfig } from "../dist/openclaw/config-apply.js";
 
-test("applies an allowlisted heartbeat config section through the workspace registry config path", async () => {
+test("merges an allowlisted heartbeat config section through the workspace registry config path", async () => {
   const root = await mkdtemp(join(tmpdir(), "openclaw-config-"));
 
   try {
@@ -39,10 +39,10 @@ test("applies an allowlisted heartbeat config section through the workspace regi
       "utf8"
     );
 
-    await applyBraintrustBundleOpenClawConfig({
+    await applyRuntimeBundleOpenClawConfig({
       bundle: {
         slug: "intentive-runtime",
-        resolvedVersionId: "bt-version-13",
+        resolvedVersionId: "lf-version-13",
         content: [
           "## Config: openclaw",
           "",
@@ -51,17 +51,7 @@ test("applies an allowlisted heartbeat config section through the workspace regi
               agents: {
                 defaults: {
                   heartbeat: {
-                    enabled: true,
-                    cadence: "30m",
-                    activeHours: {
-                      start: "09:00",
-                      end: "21:00",
-                      timezone: "Asia/Kolkata"
-                    },
-                    prompt: "Check in with warmth.",
-                    policy: {
-                      skipWhenUserActive: true
-                    }
+                    prompt: "Check in with warmth."
                   }
                 }
               }
@@ -79,17 +69,8 @@ test("applies an allowlisted heartbeat config section through the workspace regi
         defaults: {
           model: "unchanged",
           heartbeat: {
-            enabled: true,
-            cadence: "30m",
-            activeHours: {
-              start: "09:00",
-              end: "21:00",
-              timezone: "Asia/Kolkata"
-            },
-            prompt: "Check in with warmth.",
-            policy: {
-              skipWhenUserActive: true
-            }
+            enabled: false,
+            prompt: "Check in with warmth."
           }
         }
       },
@@ -132,10 +113,10 @@ test("rejects disallowed OpenClaw config keys before writing", async () => {
     await writeFile(configPath, originalConfig, "utf8");
 
     await assert.rejects(
-      applyBraintrustBundleOpenClawConfig({
+      applyRuntimeBundleOpenClawConfig({
         bundle: {
           slug: "intentive-runtime",
-          resolvedVersionId: "bt-version-14",
+          resolvedVersionId: "lf-version-14",
           content: [
             "## Config: openclaw",
             "",
@@ -143,7 +124,7 @@ test("rejects disallowed OpenClaw config keys before writing", async () => {
               agents: {
                 defaults: {
                   heartbeat: {
-                    enabled: true
+                    prompt: "Check in with warmth."
                   }
                 }
               },
@@ -156,6 +137,63 @@ test("rejects disallowed OpenClaw config keys before writing", async () => {
         registryPath
       }),
       /OpenClaw config patch contains disallowed sensitive key: auth/
+    );
+
+    assert.equal(await readFile(configPath, "utf8"), originalConfig);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("rejects heartbeat config keys that live OpenClaw does not accept", async () => {
+  const root = await mkdtemp(join(tmpdir(), "openclaw-config-"));
+
+  try {
+    const registryPath = join(root, "openclaw-workspaces.json");
+    const configPath = join(root, "openclaw.json");
+    const originalConfig = JSON.stringify({
+      agents: {
+        defaults: {
+          heartbeat: {
+            prompt: "Existing prompt."
+          }
+        }
+      }
+    });
+
+    await writeFile(
+      registryPath,
+      JSON.stringify({
+        workspaces: [join(root, "agents", "alex", "workspace")],
+        config: configPath
+      }),
+      "utf8"
+    );
+    await writeFile(configPath, originalConfig, "utf8");
+
+    await assert.rejects(
+      applyRuntimeBundleOpenClawConfig({
+        bundle: {
+          slug: "intentive-runtime",
+          resolvedVersionId: "lf-version-live-schema",
+          content: [
+            "## Config: openclaw",
+            "",
+            JSON.stringify({
+              agents: {
+                defaults: {
+                  heartbeat: {
+                    prompt: "Check in with warmth.",
+                    enabled: true
+                  }
+                }
+              }
+            })
+          ].join("\n")
+        },
+        registryPath
+      }),
+      /OpenClaw config patch path is not allowlisted by live schema: agents\.defaults\.heartbeat\.enabled/
     );
 
     assert.equal(await readFile(configPath, "utf8"), originalConfig);
@@ -191,10 +229,10 @@ test("rejects secret and routing shaped keys inside the allowlisted heartbeat su
     await writeFile(configPath, originalConfig, "utf8");
 
     await assert.rejects(
-      applyBraintrustBundleOpenClawConfig({
+      applyRuntimeBundleOpenClawConfig({
         bundle: {
           slug: "intentive-runtime",
-          resolvedVersionId: "bt-version-15",
+          resolvedVersionId: "lf-version-15",
           content: [
             "## Config: openclaw",
             "",
@@ -202,7 +240,7 @@ test("rejects secret and routing shaped keys inside the allowlisted heartbeat su
               agents: {
                 defaults: {
                   heartbeat: {
-                    enabled: true,
+                    prompt: "Check in with warmth.",
                     credentials: {
                       token: "bundle-owned"
                     }
@@ -253,10 +291,10 @@ test("rejects sensitive OpenClaw config key variants inside the heartbeat subtre
       await writeFile(configPath, originalConfig, "utf8");
 
       await assert.rejects(
-        applyBraintrustBundleOpenClawConfig({
+        applyRuntimeBundleOpenClawConfig({
           bundle: {
             slug: "intentive-runtime",
-            resolvedVersionId: "bt-version-variant",
+            resolvedVersionId: "lf-version-variant",
             content: [
               "## Config: openclaw",
               "",
@@ -264,7 +302,7 @@ test("rejects sensitive OpenClaw config key variants inside the heartbeat subtre
                 agents: {
                   defaults: {
                     heartbeat: {
-                      enabled: true,
+                      prompt: "Check in with warmth.",
                       [key]: "bundle-owned"
                     }
                   }
@@ -290,7 +328,7 @@ test("rejects invalid or duplicate OpenClaw config sections before writing", asy
     {
       name: "invalid JSON",
       content: ["## Config: openclaw", "", "{ not json"].join("\n"),
-      message: /Braintrust openclaw config section must be valid JSON/
+      message: /Runtime openclaw config section must be valid JSON/
     },
     {
       name: "duplicate config sections",
@@ -301,7 +339,7 @@ test("rejects invalid or duplicate OpenClaw config sections before writing", asy
           agents: {
             defaults: {
               heartbeat: {
-                enabled: true
+                prompt: "Check in with warmth."
               }
             }
           }
@@ -313,7 +351,7 @@ test("rejects invalid or duplicate OpenClaw config sections before writing", asy
           agents: {
             defaults: {
               heartbeat: {
-                enabled: false
+                prompt: "Different warmth."
               }
             }
           }
@@ -335,6 +373,38 @@ test("rejects invalid or duplicate OpenClaw config sections before writing", asy
         })
       ].join("\n"),
       message: /OpenClaw config patch requires agents\.defaults\.heartbeat to be a JSON object/
+    },
+    {
+      name: "empty heartbeat patch",
+      content: [
+        "## Config: openclaw",
+        "",
+        JSON.stringify({
+          agents: {
+            defaults: {
+              heartbeat: {}
+            }
+          }
+        })
+      ].join("\n"),
+      message: /OpenClaw config patch requires agents\.defaults\.heartbeat\.prompt to be a non-empty string/
+    },
+    {
+      name: "blank heartbeat prompt",
+      content: [
+        "## Config: openclaw",
+        "",
+        JSON.stringify({
+          agents: {
+            defaults: {
+              heartbeat: {
+                prompt: " "
+              }
+            }
+          }
+        })
+      ].join("\n"),
+      message: /OpenClaw config patch requires agents\.defaults\.heartbeat\.prompt to be a non-empty string/
     }
   ];
 
@@ -365,10 +435,10 @@ test("rejects invalid or duplicate OpenClaw config sections before writing", asy
       await writeFile(configPath, originalConfig, "utf8");
 
       await assert.rejects(
-        applyBraintrustBundleOpenClawConfig({
+        applyRuntimeBundleOpenClawConfig({
           bundle: {
             slug: "intentive-runtime",
-            resolvedVersionId: "bt-version-15",
+            resolvedVersionId: "lf-version-15",
             content: invalidCase.content
           },
           registryPath
@@ -399,10 +469,10 @@ test("rejects a registry without an OpenClaw config path", async () => {
     );
 
     await assert.rejects(
-      applyBraintrustBundleOpenClawConfig({
+      applyRuntimeBundleOpenClawConfig({
         bundle: {
           slug: "intentive-runtime",
-          resolvedVersionId: "bt-version-16",
+          resolvedVersionId: "lf-version-16",
           content: [
             "## Config: openclaw",
             "",
@@ -410,7 +480,7 @@ test("rejects a registry without an OpenClaw config path", async () => {
               agents: {
                 defaults: {
                   heartbeat: {
-                    enabled: true
+                    prompt: "Check in with warmth."
                   }
                 }
               }

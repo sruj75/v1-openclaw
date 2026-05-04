@@ -6,9 +6,9 @@ Child issue: #38
 This runbook is for configuring one private pilot channel through OpenClaw
 built-in Discord. OpenClaw owns Discord ingress, channel binding, conversation
 execution, and runtime state. This repository owns only the operator tooling
-around workspace registration and Braintrust-managed runtime bundle rollout.
+around workspace registration and Langfuse-managed runtime prompt rollout.
 
-Do not commit Discord tokens, OpenRouter keys, Braintrust keys, Discord user
+Do not commit Discord tokens, OpenRouter keys, Langfuse keys, Discord user
 IDs, Discord channel IDs, therapist notes, private user content, or screenshots
 of private messages. Record private acceptance evidence in the operator's
 private run log, ticket, or secure evidence store.
@@ -22,21 +22,20 @@ private run log, ticket, or secure evidence store.
 - One OpenClaw user workspace for the pilot user.
 - The same workspace path listed in `openclaw-workspaces.json`.
 - OpenRouter configured as the model provider used by the OpenClaw runtime.
-- OpenRouter Broadcast configured with Braintrust as an observability
-  destination. The OpenRouter docs describe the current Broadcast setup:
-  https://openrouter.ai/docs/guides/features/broadcast/braintrust
+- OpenRouter Broadcast configured with Langfuse as an observability
+  destination.
 
 ## Secret Handling
 
 Configure secrets only in the OpenClaw host environment or the OpenRouter and
-Braintrust dashboards:
+Langfuse dashboards:
 
 - Discord bot token
 - OpenRouter API key
-- Braintrust API key
-- Braintrust project ID
+- Langfuse public key
+- Langfuse secret key
 
-Do not put these values in `openclaw-workspaces.json`, Braintrust runtime bundle
+Do not put these values in `openclaw-workspaces.json`, Langfuse runtime prompt
 content, workspace Markdown files, committed examples, shell history copied into
 docs, or acceptance evidence committed to git.
 
@@ -45,8 +44,8 @@ Safe evidence may use labels such as:
 - `<pilot-discord-channel>`
 - `<pilot-discord-user>`
 - `<openclaw-workspace-path>`
-- `<braintrust-project>`
-- `<braintrust-trace-link>`
+- `<langfuse-project>`
+- `<langfuse-trace-link>`
 
 ## Workspace Binding
 
@@ -112,47 +111,55 @@ Date:
 
 ## Runtime Bundle Rollout
 
-Apply the same Braintrust-managed runtime bundle to every registered OpenClaw
+Apply the same Langfuse-managed runtime prompt to every registered OpenClaw
 workspace before asking the pilot user for acceptance evidence.
 
-Latest rollout:
+Production rollout:
 
 ```sh
-BRAINTRUST_API_KEY=<redacted> \
-BRAINTRUST_PROJECT_ID=<redacted> \
+LANGFUSE_PUBLIC_KEY=<redacted> \
+LANGFUSE_SECRET_KEY=<redacted> \
 npm run openclaw:apply -- \
-  --braintrust-slug intentive-runtime-bundle \
-  --latest
+  --langfuse-prompt intentive-runtime-bundle \
+  --langfuse-label production
 ```
 
 Pinned rollout:
 
 ```sh
-BRAINTRUST_API_KEY=<redacted> \
-BRAINTRUST_PROJECT_ID=<redacted> \
+LANGFUSE_PUBLIC_KEY=<redacted> \
+LANGFUSE_SECRET_KEY=<redacted> \
 npm run openclaw:apply -- \
-  --braintrust-slug intentive-runtime-bundle \
-  --braintrust-version <version-id>
+  --langfuse-prompt intentive-runtime-bundle \
+  --langfuse-version <number>
 ```
 
-Record the resolved Braintrust version printed by `openclaw:apply` in the
+Record the resolved Langfuse prompt version printed by `openclaw:apply` in the
 private run log. Do not paste private bundle content into the run log.
 
-## OpenRouter To Braintrust Observability
+If the runtime bundle includes `## Config: openclaw`, it may set only
+`agents.defaults.heartbeat.prompt`, and that prompt must be non-empty.
+`openclaw:apply` merges the prompt into the existing heartbeat object so local
+OpenClaw heartbeat settings are not cleared by rollout.
+
+## OpenRouter To Langfuse Observability
 
 OpenClaw should send model calls through OpenRouter. OpenRouter Broadcast then
-sends traces to Braintrust without this repository adding a separate
+sends traces to Langfuse without this repository adding a separate
 observability relay.
+
+OpenRouter Broadcast is already the v1 trace path to Langfuse. Do not add
+direct Langfuse SDK tracing in this repository for this slice.
 
 Operator setup:
 
 1. In OpenRouter, enable Broadcast for the account or organization used by
    OpenClaw.
-2. Add Braintrust as a Broadcast destination.
-3. Configure the Braintrust API key and project ID in OpenRouter.
+2. Add Langfuse as a Broadcast destination.
+3. Configure the Langfuse keys in OpenRouter.
 4. Use OpenRouter's test connection flow and save only after it succeeds.
 5. Send one pilot message through OpenClaw built-in Discord.
-6. In Braintrust, open the project logs and find the matching trace.
+6. In Langfuse, open the project traces and find the matching trace.
 
 Recommended trace lookup fields:
 
@@ -162,7 +169,7 @@ Recommended trace lookup fields:
 - OpenClaw workspace label
 - model/provider
 - OpenRouter request ID if available
-- Braintrust trace link or trace ID
+- Langfuse trace link or trace ID
 
 ## Manual Acceptance Evidence
 
@@ -187,8 +194,8 @@ OpenClaw reply evidence:
 - confirmed reply came from OpenClaw built-in Discord:
 - confirmed no custom Intentive relay process was used:
 
-Braintrust trace lookup:
-- Braintrust project label:
+Langfuse trace lookup:
+- Langfuse project label:
 - approximate trace timestamp:
 - trace link or trace ID:
 - matching user/session/metadata fields:
@@ -216,4 +223,4 @@ git diff --check HEAD
 
 These checks prove the documentation remains discoverable and the operator
 tooling still builds. They do not prove the private Discord, OpenClaw, or
-Braintrust path; that proof requires the manual acceptance evidence above.
+Langfuse path; that proof requires the manual acceptance evidence above.

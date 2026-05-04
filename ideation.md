@@ -6,10 +6,18 @@ decision at a time.
 
 ## Current Status
 
-- Stage: human-in-the-loop v1 shape emerging, minimum end-to-end loop unresolved
-- Mode: grill-me
-- Repo context: very early project, minimal codebase present
-- Source of truth for scope: this file
+- Stage: OpenClaw-native operator toolkit; Phase 4 productized manual pilot
+  (Langfuse-managed shared prompts, two-user runbook).
+- Repo context: relay retired; `openclaw:apply` + `openclaw-workspaces.json`
+  roll Langfuse bundles into registered workspaces. See root `README.md`,
+  `CONTEXT.md`, and `docs/phase3-openclaw-discord-runtime.md` /
+  `docs/phase4-productized-manual-pilot.md`.
+- Historical log: questions and answers below still say **Braintrust** in places
+  from early ideation. **This branch** uses **Langfuse** for prompt management
+  and iteration, and **OpenRouter Broadcast → Langfuse** for runtime traces (no
+  in-repo Braintrust bundle client).
+- Source of truth for early design exploration: this file; for shipped operator
+  behavior: root `README.md` and `docs/`.
 
 ## Raw Idea
 
