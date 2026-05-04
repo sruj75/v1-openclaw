@@ -61,3 +61,32 @@ test("repo narrative names OpenClaw built-in channels as the runtime path", asyn
   assert.doesNotMatch(activeRuntimeDocs, /custom Discord ingress as the product runtime/i);
   assert.doesNotMatch(activeRuntimeDocs, /Braintrust-managed|BRAINTRUST_|--braintrust-|Braintrust trace lookup|Resolved Braintrust version/);
 });
+
+test("Phase 4 runbook requires separated Langfuse users and sessions before trace-led review", async () => {
+  const phase4PilotDoc = await readFile("docs/phase4-productized-manual-pilot.md", "utf8");
+
+  assert.match(phase4PilotDoc, /OpenRouter-to-Langfuse identity contract/);
+  assert.match(phase4PilotDoc, /`user`\s+maps to the Langfuse User ID/);
+  assert.match(phase4PilotDoc, /`session_id`\s+maps to the Langfuse Session ID/);
+  assert.match(phase4PilotDoc, /`trace`\s+metadata/);
+  assert.match(phase4PilotDoc, /`trace_name`/);
+  assert.match(phase4PilotDoc, /`environment`/);
+  assert.match(phase4PilotDoc, /`tenant_id`/);
+  assert.match(phase4PilotDoc, /`openclaw_agent_id`/);
+  assert.match(phase4PilotDoc, /`workspace_label`/);
+  assert.match(phase4PilotDoc, /`channel`/);
+  assert.match(phase4PilotDoc, /`prompt_name`/);
+  assert.match(phase4PilotDoc, /`prompt_version` or `prompt_label`/);
+  assert.match(phase4PilotDoc, /Langfuse User proof:/);
+  assert.match(phase4PilotDoc, /Langfuse Session proof:/);
+  assert.match(phase4PilotDoc, /Langfuse Trace metadata proof:/);
+  assert.match(phase4PilotDoc, /observability identifiers/);
+  assert.match(
+    phase4PilotDoc,
+    /must not use real names, Discord IDs, tokens,\s+private content, therapist notes, phone numbers, or private user facts/
+  );
+  assert.match(
+    phase4PilotDoc,
+    /Annotation queues, dataset seeds, experiments, and founder review may use only\s+traces and sessions where the identity contract is visible/
+  );
+});

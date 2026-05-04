@@ -61,6 +61,8 @@ Never commit:
 - one-on-one session summary text
 - Discord message content
 - screenshots of private messages
+- observability identifiers that use real names, Discord IDs, tokens, private
+  content, therapist notes, phone numbers, or private user facts
 
 Safe evidence should use redacted labels:
 
@@ -238,13 +240,62 @@ Founder judgment owns whether the observed behavior is good enough. The evidence
 packet should make that judgment possible without turning the pilot into a
 premature metrics exercise.
 
-### 8. Verify Langfuse Evidence
+### 8. Verify OpenRouter-To-Langfuse Identity
+
+OpenRouter Broadcast is the v1 observability path into Langfuse. The pilot must
+not accept jumbled traces as evidence. Before Domain Expert Review, dataset
+seeding, experiments, Trace-Led Prompt Iteration, or founder review, verify the
+OpenRouter-to-Langfuse identity contract for each pilot user.
+
+The OpenClaw runtime must emit these fields on every OpenRouter request:
+
+- `user` maps to the Langfuse User ID.
+- `session_id` maps to the Langfuse Session ID.
+- `trace` metadata must include `trace_name`, `environment`, `tenant_id`,
+  `openclaw_agent_id`, `workspace_label`, `channel`, `prompt_name`, and
+  `prompt_version` or `prompt_label`.
+
+These observability identifiers must not use real names, Discord IDs, tokens,
+private content, therapist notes, phone numbers, or private user facts. Use
+stable redacted labels that let operators separate users, sessions, agents,
+workspaces, prompt versions, and channels without exposing private material.
+
+For each user:
+
+```text
+User label:
+OpenRouter `user` value:
+OpenRouter `session_id` value:
+Langfuse User proof:
+Langfuse Session proof:
+Langfuse Trace metadata proof:
+Trace `trace_name`:
+Trace `environment`:
+Trace `tenant_id`:
+Trace `openclaw_agent_id`:
+Trace `workspace_label`:
+Trace `channel`:
+Trace `prompt_name`:
+Trace `prompt_version` or `prompt_label`:
+Private identifiers/content omitted:
+OpenClaw runtime gap found: yes/no
+If yes, blocker recorded:
+Operator:
+Notes:
+```
+
+### 9. Verify Langfuse Evidence
 
 OpenClaw should send model calls through OpenRouter, and OpenRouter Broadcast
 should send traces to Langfuse.
 
 OpenRouter Broadcast is already the v1 trace path to Langfuse. Do not add
 direct Langfuse SDK tracing in this repository for this slice.
+
+Annotation queues, dataset seeds, experiments, and founder review may use only
+traces and sessions where the identity contract is visible. If OpenClaw cannot
+pass `user`, `session_id`, or `trace` metadata through OpenRouter, record that as
+a runtime blocker instead of using ambiguous Langfuse evidence.
 
 For each user:
 
@@ -258,11 +309,15 @@ Langfuse project label:
 Approximate trace timestamp:
 Trace link or trace ID:
 Matching runtime/user/session labels:
+Langfuse User proof:
+Langfuse Session proof:
+Langfuse Trace metadata proof:
 Private message content omitted:
 OpenRouter Broadcast to Langfuse confirmed:
 Annotation queue review added: yes/no/not useful
 Dataset seed added: yes/no/not useful
 Experiment candidate added: yes/no/not useful
+Identity contract visible before review/dataset use: yes/no
 Improvement candidate:
 Notes:
 ```
@@ -272,7 +327,7 @@ where useful, experiments where useful, and improvement candidates. Do not add
 custom local annotation tables, local JSONL/CSV exporters, Langfuse upload
 tooling, scorers, or automated eval dashboards.
 
-### 9. Check Multi-User Isolation
+### 10. Check Multi-User Isolation
 
 Record isolation evidence after setup, handoff, proactive behavior, and live
 support.
@@ -289,7 +344,7 @@ Operator:
 Date:
 ```
 
-### 10. Founder Acceptance Review
+### 11. Founder Acceptance Review
 
 The founder reviews the evidence packet and decides whether Phase 4 is complete.
 
