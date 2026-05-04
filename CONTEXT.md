@@ -23,11 +23,11 @@ _Avoid_: module-only feature, reminder
 
 **Situational Awareness**:
 The companion's understanding of timing, user state, recent context, commitments, and likely friction before deciding how to intervene.
-_Avoid_: blind scheduled message, generic check-in
+_Avoid_: blind scheduled message, generic check-in, biometric sensing
 
 **Proactive Judgment**:
 The companion's decision about whether and how to intervene when a proactive trigger fires.
-_Avoid_: cron-as-policy, automatic reminder copy
+_Avoid_: cron-as-policy, automatic reminder copy, event-based nudge policy
 
 **Intentional Silence**:
 The companion's choice not to message when a proactive trigger fires but intervention would create noise or harm timing.
@@ -48,6 +48,18 @@ _Avoid_: hardcoded response menu, robotic checklist
 **Evolving User Model**:
 The companion's durable understanding of what activates the user, shuts them down, supports them, pressures them, and matters to them.
 _Avoid_: settings form, static persona
+
+**Relational Context**:
+The companion's in-the-loop understanding of the user's life built through repeated natural conversations, handoffs, and observed support history.
+_Avoid_: biometric data stream, passive sensing profile, surveillance feed
+
+**Performance Intimacy**:
+The trusted closeness where the companion knows the user's goals, patterns, stakes, avoidance loops, and lived context well enough to intervene precisely.
+_Avoid_: friendliness, parasocial chat, generic rapport
+
+**Embodied Technique**:
+Expert psychological technique expressed through the companion's timing, language, questions, pressure, restraint, and follow-through rather than explained as a framework.
+_Avoid_: user-facing analysis, technique narration, framework lecture
 
 **User Context File**:
 The OpenClaw workspace file, especially `USER.md`, that carries durable personalization context into the companion prompt.
@@ -92,6 +104,10 @@ _Avoid_: symptom, task blocker
 **State Shift**:
 A change in the user's functional mental state that restores access to agency, clarity, confidence, or motion.
 _Avoid_: advice, insight, motivation
+
+**Performance Outcome**:
+The external result the user is more able to produce after the companion interaction restores their functional state.
+_Avoid_: conversation quality, internal shift only, motivation
 
 **Intervention Layer**:
 The companion's role between internal friction and behavioral collapse.
@@ -179,7 +195,9 @@ _Avoid_: user-facing support, session handoff, live intervention
 - **Intentional Silence** is a valid proactive outcome when the companion judges that no message is the right move.
 - Proactive triggers create **Opportunity Windows**, not fixed scheduled check-ins.
 - **Dynamic Human Judgment** matters more than enumerating a hardcoded menu of proactive response types.
-- The companion should maintain an **Evolving User Model** through existing OpenClaw workspace context, especially the **User Context File**.
+- The companion should maintain an **Evolving User Model** through **Relational Context** and existing OpenClaw workspace context, especially the **User Context File**.
+- **Performance Intimacy** gives the companion the context and trust needed for **Real-Time Performance Psychology** to land without feeling generic, invasive, or theatrical.
+- **Real-Time Performance Psychology** should be delivered as **Embodied Technique**, not narrated as a user-facing framework.
 - The **Global Product Prompt** defines Intentive behavior once, while user-specific context flows through the **User Context File**.
 - The **Personalization Write Surface** is `USER.md`; runtime should not self-edit **Langfuse-Owned Prompt Surface** files for user preference or product behavior.
 - The **Virtual Workspace Roadmap** may later replace real filesystem storage, but it should not distract from the current Langfuse **V1 Prompt** rollout.
@@ -187,6 +205,7 @@ _Avoid_: user-facing support, session handoff, live intervention
 - The companion uses the **What Failure Lens** to detect the executive-function failure and the **Why Failure Layer** to infer the root cause.
 - The **Performance Bottleneck** is the connection between the **What Failure Lens** and the **Why Failure Layer**.
 - The user should experience a **State Shift**, not a taxonomy lesson about executive function.
+- A **State Shift** matters because it enables a **Performance Outcome** the user could not reliably produce from their previous state.
 - Intentive is an **Intervention Layer** between internal friction and behavioral collapse.
 - **Calibrated Pressure** is allowed when softness would keep the user stuck, but only when it serves a **State Shift**.
 - **Real-Time Performance Psychology** is the underlying practice mix, while the user experience should feel conversational and human.
@@ -259,6 +278,8 @@ _Avoid_: user-facing support, session handoff, live intervention
 - "one intervention surface" could sound too rigid — resolved: choose the **Leverage Point** first, with supporting moves only when useful.
 - Few-shot examples are valuable, but v1 should not speculate an exhaustive library before real traces show which examples are needed.
 - Clinical and legal disclaimer text should not pollute the companion experience; keep it outside the **Runtime Prompt Boundary**.
-- Proactive behavior should not become a hardcoded checklist; v1 uses **Opportunity Windows** and **Dynamic Human Judgment**.
+- "the conversation is the pill" can overstate the surface interaction — resolved: conversation is the main intervention surface, but the promise is a **Performance Outcome** enabled by a **State Shift**.
+- Proactive behavior should not become a hardcoded checklist, biometric sensing system, or event-based nudge stream; v1 uses **Relational Context**, **Opportunity Windows**, and **Dynamic Human Judgment**.
+- "psychological technique" could make the product feel analytical or clinical if surfaced directly — resolved: use **Embodied Technique** unless the user explicitly asks how the companion is thinking.
 - "between-session" overfits the pilot and human expert workflow — resolved: **Execution Companion Primitive** is the core product capability, and human-in-the-loop is the only active **Feature Module** for current V1 prompt work.
 - Executive-function terms are internal product language, not user-facing response language.
