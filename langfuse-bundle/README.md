@@ -12,6 +12,9 @@ copies for local review, design discussion, and `openclaw:apply` test fixtures.
   relationship setup and minimal personalization.
 - `proactivity-design.md` captures the current design discussion for
   proactivity, heartbeat, cron, and OpenClaw config boundaries.
+- `cognitive-design.md` captures the current design discussion for
+  outcome-first cognitive intervention, performance intimacy, embodied
+  technique, and performance outcomes.
 
 ## Iteration Rules
 
