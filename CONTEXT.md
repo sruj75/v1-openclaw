@@ -185,6 +185,122 @@ _Avoid_: current V1 behavior, hidden promise
 Domain expert review in Langfuse used to build evals, improve prompts, and test the product.
 _Avoid_: user-facing support, session handoff, live intervention
 
+**Initiation Layering**:
+The product progression from user-initiated workflows to companion-initiated workflows and later tool-integrated automation.
+_Avoid_: all-or-nothing automation framing, immediate full integration requirement
+
+**Level 2 Initiation Wedge**:
+The current operating mode where the companion initiates the loop, the user supplies context in language, and the user performs the real-world work.
+_Avoid_: user-initiated task management, agent-does-the-job framing
+
+**User-Sourced Context Intake**:
+Context intake through companion-initiated questions that ask the user to surface relevant commitments from their own sources.
+_Avoid_: passive waiting for user self-initiation, mandatory direct API ingestion
+
+**Trigger Contract**:
+The approved set of initiation triggers for the current wedge: companion-owned timing/check-in triggers and previously declared commitments.
+_Avoid_: broad ingestion-trigger sprawl, silent dependency on unavailable integrations
+
+**Execution Boundary**:
+The rule that the companion drives initiation, clarification, scheduling, and follow-through scaffolding while the user still executes the underlying task.
+_Avoid_: assistant-as-executor, pure reminder bot
+
+**Canonical Transition Backbone**:
+The simple progress track the companion keeps in the background so follow-ups do not get lost: `candidate -> clarified -> scheduled -> initiated -> confirmation_pending -> closed`.
+_Avoid_: brittle fixed productivity taxonomy, state-free ad hoc transitions
+
+**Capability Honesty Boundary**:
+The rule that the companion must not imply direct access or actions it does not currently have, and must ask the user to fetch or confirm external context instead.
+_Avoid_: fake integration claims, simulated tool access, fabricated completions
+
+**Personalized Initiation Rhythm**:
+The companion's outreach cadence is personalized to each user's context and reliability pattern rather than locked to one universal schedule.
+_Avoid_: one-size-fits-all cadence policy, rigid global timing template
+
+**Deadline-Driven Knowledge Worker Wedge**:
+The primary wedge user group: professionals with deadline-bound deliverables whose execution breaks through avoidance, panic compression, and relapse loops despite high agency.
+_Avoid_: generic productivity audience, broad self-improvement positioning
+
+**Grounded Confirmation Authority**:
+The user is the final authority on real-world execution status because the user performs the underlying work in the Level 2 wedge.
+_Avoid_: model-inferred completion without user grounding, fake certainty
+
+**Dynamic Confirmation Semantics**:
+Confirmation should accept natural-language reality updates and map them to state transitions, not force rigid checkbox-style labels.
+_Avoid_: robotic finite-response UX, brittle confirmation grammar
+
+**Bootstrap Personalization Heuristics**:
+The one-time bootstrap ritual should use adaptive, conversational heuristics to discover how this specific user works, where execution breaks, and how proactive nudges should be timed and framed; it should not run a rigid form.
+_Avoid_: fixed field checklists, generic onboarding without execution context, leaving personalization only in transient chat
+
+**Level 2 Personalization Persistence**:
+Bootstrap initializes personalization once, then runtime updates should persist through `USER.md`, `memory/YYYY-MM-DD.md`, and curated `MEMORY.md`.
+_Avoid_: one-time-only personalization, reliance on ephemeral conversation memory
+
+**Phase 1 Mechanism Focus**:
+Current work is limited to proactive initiation mechanics (wake-ups, nudges, confirmation flow, persistence flow), not deep cognitive-quality optimization.
+_Avoid_: premature intervention-style optimization, broad taxonomy design before mechanism reliability
+
+**Non-Response Retry Ladder**:
+When a proactive wake-up gets no reply, the companion should follow a predictable fallback sequence (retry nudge, simplify ask, then offer reschedule/recommit) so recovery behavior is dependable.
+_Avoid_: random retry behavior, infinite pinging, silent abandonment of active commitments
+
+**Wake-Up Decision Gate**:
+Each proactive wake-up should resolve to one of two outcomes only: intervene now or intentional silence; the decision should be logged briefly for later review.
+_Avoid_: ambiguous wake-up outcomes, untraceable outreach decisions, message spam
+
+**Decision Log Placement**:
+Operational wake-up decisions should be logged minimally in `memory/YYYY-MM-DD.md`, while `USER.md` remains profile-level and relatively stable.
+_Avoid_: cluttering `USER.md` with operational trace noise, missing wake-up traceability
+
+**Proactive Contract Hygiene**:
+The companion should keep proactive contracts current and clean up stale residue after commitments resolve, change, or become irrelevant.
+_Avoid_: orphaned cron follow-ups, stale heartbeat follow-up intent, outdated contract buildup
+
+**Proactive Contract Exit Condition**:
+Every proactive contract must define how it ends (for example: confirmed done, explicitly deferred, superseded, or dropped) so cleanup can happen automatically.
+_Avoid_: open-ended follow-up contracts, indefinite retries, residual contract drift
+
+**One Follow-Up Per Task**:
+For the same deliverable/task, keep one active follow-up promise at a time; if plans change, update or replace the existing follow-up instead of creating duplicates.
+_Avoid_: duplicate follow-up promises for the same task, parallel conflicting check-ins
+
+**Minimal Clarification Heuristic**:
+When user timing or intent is ambiguous, ask only the minimum clarifying questions needed to set a useful follow-up; do not force a fixed number of questions.
+_Avoid_: mandatory one-question scripts, over-questioning clear user intent, unclear rescheduling guesses
+
+**Progressive Re-Entry Heuristic**:
+After a user agrees to start and then goes quiet, begin with a light re-entry and escalate only as needed through the retry ladder.
+_Avoid_: immediate hard escalation, rigid fixed-tone sequencing, abandoning active starts too early
+
+**Single-Step Intervention Rule**:
+Each proactive intervention should ask for one primary next step at a time in conversational language.
+_Avoid_: multi-step instruction dumps, checklist-style prompting, high initiation friction
+
+**Heuristic Understanding Check**:
+Before changing commitment state, the companion should use situational judgment to verify it understood the user's free-text update, often by a brief reflective confirmation when ambiguity is non-trivial.
+_Avoid_: rigid scripted confirmation on every turn, silent high-risk state changes
+
+**Heuristic Guardrails**:
+Mechanism rules in this context are safety boundaries and default strategies, not rigid scripts; the companion should adapt execution to the moment while staying inside the boundaries.
+_Avoid_: robot-like playbook execution, overfitting to canned flows, ignoring context in the name of consistency
+
+**Must-Follow System Rules**:
+Some system-level behaviors are non-negotiable (for example: capability honesty, exit conditions, cleanup hygiene, and trace logging placement) so the companion is reliable from day one; heuristics and judgment operate inside these fixed boundaries.
+_Avoid_: treating core safety/reliability constraints as optional style choices
+
+**Wake-Up Event Primitive**:
+A system-generated runtime event that invokes the companion loop without requiring a user message, typically from heartbeat cadence or cron commitments.
+_Avoid_: magical proactivity framing, prompt-only wake assumptions
+
+**Cron Promise Primitive**:
+Cron is used for exact promised follow-ups where timing reliability is part of user trust.
+_Avoid_: fuzzy timing for explicit commitments, using heartbeat for exact promise delivery
+
+**Heartbeat Drift Primitive**:
+Heartbeat is used for periodic awareness and drift detection, where the companion may intervene or intentionally stay silent.
+_Avoid_: heartbeat-as-alarm-clock, message-on-every-tick behavior
+
 ## Relationships
 
 - A **V1 Prompt** is a **Shared Operating Contract** for the Phase 4 pilot.
@@ -225,6 +341,37 @@ _Avoid_: user-facing support, session handoff, live intervention
 - **Product-Building Feedback** belongs to the Langfuse improvement loop, not the companion's product behavior in chat.
 - A **Heartbeat Policy** is part of the **V1 Prompt**, not the whole prompt.
 - Each registered pilot workspace receives the same resolved **V1 Prompt** version through Langfuse prompt rollout.
+- **Initiation Layering** should move in order: Level 1 user-initiated workflow, then **Level 2 Initiation Wedge**, then future deeper automation.
+- The active product wedge is **Level 2 Initiation Wedge**, not direct multi-system context ingestion.
+- **User-Sourced Context Intake** is still valid **Context Intake** because the companion starts the loop and asks the user for source-grounded details.
+- The active **Trigger Contract** is intentionally narrow: companion-owned schedule/check-ins and prior declared commitments.
+- **Execution Boundary** keeps product truth intact: the companion initiates and scaffolds, the user performs the actual job.
+- The companion should use a **Canonical Transition Backbone** (`candidate` -> `clarified` -> `scheduled` -> `initiated` -> `confirmation_pending` -> `closed`) while keeping classification and intervention language dynamic.
+- The **Capability Honesty Boundary** is mandatory in the Level 2 wedge: the companion asks for user-supplied source context instead of pretending direct reads or writes.
+- The active **Trigger Contract** should be expressed through a **Personalized Initiation Rhythm** per user, seeded from bootstrap/personalization context rather than one static daily policy.
+- The current market wedge is the **Deadline-Driven Knowledge Worker Wedge**, where the core value is interruption of avoidance-to-panic execution collapse on consequential deliverables.
+- **Grounded Confirmation Authority** controls closure decisions in the Level 2 wedge; the companion should not self-certify real-world completion.
+- **Dynamic Confirmation Semantics** can include patterns like yes/no/partial, but the interaction should stay conversational and map freeform user updates onto the transition backbone.
+- **Wake-Up Event Primitive** is the runtime source of proactivity: clock/scheduler -> wake-up event -> companion loop -> optional outbound delivery.
+- The companion should apply **Cron Promise Primitive** for exact commitments and **Heartbeat Drift Primitive** for broad situational awareness.
+- `closed` is only the internal bucket in the simple progress track; user language like done/finished/complete is interpreted heuristically through **Dynamic Confirmation Semantics**.
+- **Bootstrap Personalization Heuristics** should capture user-specific work rhythm and deadline reality once, then persist it in `USER.md` so proactive behavior can stay personalized over time.
+- **Level 2 Personalization Persistence** keeps bootstrap initialization alive through durable workspace memory surfaces (`USER.md`, daily memory, curated long-term memory).
+- **Bootstrap Personalization Heuristics** should be adaptive and conversational, not a required field checklist.
+- **Phase 1 Mechanism Focus** is the active boundary: make proactive initiation reliable first, then improve cognitive quality later.
+- **Non-Response Retry Ladder** is the mechanism safety rail, while heuristic judgment chooses message wording and situational framing.
+- **Wake-Up Decision Gate** is a heuristic guardrail boundary: every wake-up resolves to intervene now or intentional silence, with a short decision record.
+- **Wake-Up Decision Gate** decisions are contextual and user-specific, not tied to one fixed universal rhythm.
+- **Single-Step Intervention Rule** keeps interventions conversational and low-friction by advancing one step at a time.
+- **Heuristic Understanding Check** should validate ambiguous user updates before state changes without forcing a fixed “reflect and confirm” script each time.
+- **Heuristic Guardrails** apply across all Phase 1 mechanics: keep boundaries deterministic, keep intervention execution adaptive.
+- **Must-Follow System Rules** define the fixed system floor; heuristics decide how to act within that floor.
+- **Decision Log Placement** keeps operational traces in daily memory and protects `USER.md` as durable personalization context.
+- **Proactive Contract Hygiene** requires the companion to update, replace, or remove old proactive contracts so the system does not accumulate stale follow-up residue.
+- **Proactive Contract Exit Condition** is a must-follow system rule; heuristics may shape wording/timing, but not whether an exit condition exists.
+- **One Follow-Up Per Task** keeps proactive behavior clean: replace/update existing follow-up promises instead of stacking duplicates.
+- **Minimal Clarification Heuristic** should resolve ambiguity with as few questions as needed, using judgment instead of fixed scripts.
+- **Progressive Re-Entry Heuristic** should start soft after silence and escalate only when context indicates it is needed.
 
 ## Example Dialogue
 
