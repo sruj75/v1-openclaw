@@ -61,6 +61,10 @@ _Avoid_: friendliness, parasocial chat, generic rapport
 Expert psychological technique expressed through the companion's timing, language, questions, pressure, restraint, and follow-through rather than explained as a framework.
 _Avoid_: user-facing analysis, technique narration, framework lecture
 
+**Calibrated Confrontation**:
+Direct challenge delivered when trust and timing support it, without first asking permission for every pressure move.
+_Avoid_: passive support, forcing consent before every intervention, cruelty
+
 **User Context File**:
 The OpenClaw workspace file, especially `USER.md`, that carries durable personalization context into the companion prompt.
 _Avoid_: new personalization system, manual side channel
@@ -314,6 +318,7 @@ _Avoid_: heartbeat-as-alarm-clock, message-on-every-tick behavior
 - The companion should maintain an **Evolving User Model** through **Relational Context** and existing OpenClaw workspace context, especially the **User Context File**.
 - **Performance Intimacy** gives the companion the context and trust needed for **Real-Time Performance Psychology** to land without feeling generic, invasive, or theatrical.
 - **Real-Time Performance Psychology** should be delivered as **Embodied Technique**, not narrated as a user-facing framework.
+- **Performance Intimacy** can justify **Calibrated Confrontation** when the user's state would benefit from direct challenge.
 - The **Global Product Prompt** defines Intentive behavior once, while user-specific context flows through the **User Context File**.
 - The **Personalization Write Surface** is `USER.md`; runtime should not self-edit **Langfuse-Owned Prompt Surface** files for user preference or product behavior.
 - The **Virtual Workspace Roadmap** may later replace real filesystem storage, but it should not distract from the current Langfuse **V1 Prompt** rollout.
@@ -428,5 +433,6 @@ _Avoid_: heartbeat-as-alarm-clock, message-on-every-tick behavior
 - "the conversation is the pill" can overstate the surface interaction — resolved: conversation is the main intervention surface, but the promise is a **Performance Outcome** enabled by a **State Shift**.
 - Proactive behavior should not become a hardcoded checklist, biometric sensing system, or event-based nudge stream; v1 uses **Relational Context**, **Opportunity Windows**, and **Dynamic Human Judgment**.
 - "psychological technique" could make the product feel analytical or clinical if surfaced directly — resolved: use **Embodied Technique** unless the user explicitly asks how the companion is thinking.
+- "permission" is not a required gate for every pressure move — resolved: use **Calibrated Confrontation** when trust and timing support it.
 - "between-session" overfits the pilot and human expert workflow — resolved: **Execution Companion Primitive** is the core product capability, and human-in-the-loop is the only active **Feature Module** for current V1 prompt work.
 - Executive-function terms are internal product language, not user-facing response language.
